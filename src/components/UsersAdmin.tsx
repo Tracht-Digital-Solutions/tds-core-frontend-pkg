@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
   PORTAL_PERMISSIONS,
   PORTAL_PERMISSION_LABELS,
@@ -6,6 +6,7 @@ import {
   type PortalPermission,
   type PortalRolePreset,
 } from "@tracht-digital-solutions/tds-shared/permissions";
+import { FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
 import { AUTH_API_URL, CUSTOMER_API_URL, frontendFetch } from "../lib/auth";
 
 interface Membership {
@@ -126,11 +127,18 @@ export default function UsersAdmin() {
 
   return (
     <div className="users-admin space-y-6">
-      {error ? <p className="status-pill status-pill--danger" role="alert">{error}</p> : null}
-      {notice ? <p className="status-pill status-pill--info" role="status">{notice}</p> : null}
+      {/* `.status-pill` is an inline LABEL, not a banner — these were stretched
+          <p> pills. <FormAlert> (danger) and `.tds-alert` (any hue) are the
+          block-message primitives. */}
+      <FormAlert message={error} />
+      {notice ? (
+        <p className="tds-alert" style={{ "--tds-alert-hue": "var(--color-info)" } as CSSProperties} role="status">
+          {notice}
+        </p>
+      ) : null}
 
-      <div className="flex gap-3">
-        <button type="button" onClick={() => setShowCreate((v) => !v)}>
+      <div className="tds-toolbar">
+        <button type="button" className="btn btn-primary" onClick={() => setShowCreate((v) => !v)}>
           {showCreate ? "Abbrechen" : "Neuer Nutzer"}
         </button>
       </div>
@@ -140,13 +148,13 @@ export default function UsersAdmin() {
       ) : null}
 
       {users === null ? (
-        <p>Wird geladen …</p>
+        <p role="status"><Spinner /></p>
       ) : users.length === 0 ? (
-        <p>Keine Nutzer.</p>
+        <p className="tds-empty">Keine Nutzer.</p>
       ) : (
         <ul className="users-admin__list space-y-3">
           {users.map((u) => (
-            <li key={u.id} className="users-admin__row rounded-xl border border-[color:var(--color-border)] p-4">
+            <li key={u.id} className="users-admin__row rounded-xl border border-[color:var(--color-line)] p-4">
               {editingId === u.id ? (
                 <UserForm
                   companies={companies}
@@ -160,10 +168,10 @@ export default function UsersAdmin() {
                     <p className="font-medium">{u.name ?? "—"}</p>
                     <p className="text-sm opacity-70 break-all">{u.email}</p>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {u.isAdmin ? <span className="chip chip--violet">Admin</span> : null}
-                      {u.isAdmin && u.isSupportAgent ? <span className="chip chip--teal">Support-Agent</span> : null}
-                      {u.isBlogAuthor && !u.isAdmin ? <span className="chip chip--amber">Blog-Autor</span> : null}
-                      {u.status === "disabled" ? <span className="chip chip--rose">Gesperrt</span> : null}
+                      {u.isAdmin ? <span className="chip chip--cat-violet">Admin</span> : null}
+                      {u.isAdmin && u.isSupportAgent ? <span className="chip chip--cat-teal">Support-Agent</span> : null}
+                      {u.isBlogAuthor && !u.isAdmin ? <span className="chip chip--cat-amber">Blog-Autor</span> : null}
+                      {u.status === "disabled" ? <span className="chip chip--cat-rose">Gesperrt</span> : null}
                       {!u.isAdmin ? (
                         <span className="text-xs opacity-60">
                           {(u.memberships?.length ?? 0)} Firma
@@ -178,7 +186,7 @@ export default function UsersAdmin() {
                   <div className="flex flex-wrap gap-2 shrink-0">
                     <button type="button" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
                     <button type="button" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
-                    <button type="button" className="danger" onClick={() => void remove(u)}>Löschen</button>
+                    <button type="button" className="btn btn-danger" onClick={() => void remove(u)}>Löschen</button>
                   </div>
                 </div>
               )}
@@ -328,7 +336,7 @@ function UserForm({
             <p className="text-xs opacity-60">Keine Firma zugeordnet — dieses Konto kann sich anmelden, sieht aber kein Portal.</p>
           ) : null}
           {memberships.map((m, i) => (
-            <div key={m.customerId} className="rounded-lg border border-[color:var(--color-border)] p-3 space-y-3">
+            <div key={m.customerId} className="rounded-lg border border-[color:var(--color-line)] p-3 space-y-3">
               <div className="flex items-center gap-3">
                 <select value={String(m.customerId)} onChange={(e) => updateMembership(i, { customerId: Number(e.target.value) })}>
                   {companies
@@ -341,7 +349,7 @@ function UserForm({
                     <option value={m.customerId}>Firma #{m.customerId}</option>
                   ) : null}
                 </select>
-                <button type="button" className="danger text-xs ml-auto" onClick={() => removeMembership(i)}>Entfernen</button>
+                <button type="button" className="btn btn-danger text-xs ml-auto" onClick={() => removeMembership(i)}>Entfernen</button>
               </div>
               <PermissionPicker value={m.permissions} onChange={(perms) => updateMembership(i, { permissions: perms })} />
             </div>

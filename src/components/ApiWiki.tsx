@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
 import { API_BASE, frontendFetch } from "../lib/auth";
 
 interface WikiRoute {
@@ -60,8 +61,8 @@ export default function ApiWiki() {
     return [...byGroup.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [data, q]);
 
-  if (error) return <p className="status-pill status-pill--danger">{error}</p>;
-  if (!data) return <p>Wird geladen …</p>;
+  if (error) return <FormAlert message={error} />;
+  if (!data) return <p role="status"><Spinner /></p>;
 
   return (
     <div className="api-wiki">

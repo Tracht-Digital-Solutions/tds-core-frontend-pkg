@@ -39,9 +39,56 @@ loading, never `output: "server"`. The shell reads `virtual:frontend-registry`
 ## Two product targets
 
 Admin and customer are the same host with different extension lists. Keep target
-differences to the `astro.config` / build env, not forks of the shell. The **admin**
-target composes all five internal extensions (time-tracker, support-tickets,
-contact-tickets, website-cms, blog-cms); **customer** composes only support-tickets.
+differences to the `astro.config` / build env, not forks of the shell. The
+**admin** target composes 13 extensions (time-tracker, support-tickets,
+contact-tickets, live-chat-cta, website-cms, blog-cms, lexware, customers,
+billing, tools, messages, projects, documents); **customer** composes 5
+(support-tickets, billing, messages, projects, documents).
+
+**There is exactly ONE panel design, and it is enforced.** `config/target.ts`
+may branch on `FRONTEND_TARGET` only for *functional* values (`HINT_PREFIX`,
+`LOGIN_URL`) and the wordmark suffix text (`BRAND_SUFFIX` = "Panel"/"Portal").
+It must never branch on anything styling-related. The regression check is a
+build of both products plus a diff of the design rule sets in
+`dist/_astro/Layout.*.css` — they must be identical (134 rules at the time of
+writing). Only the Tailwind *utility* sets legitimately differ, because admin
+composes more extensions and the `@source` scan therefore generates more
+utilities.
+
+## Panel design language
+
+This host is the **`panel` surface** of the shared design library in
+tds-shared-pkg. `Layout.astro` sets `<html data-surface="panel">`, and
+`styles/global.css` imports `base.css` → `primitives.css` → `app.css` →
+`surfaces/panel.css`. The surface layer owns the geometry: 8px buttons/cards,
+`0.75rem` chips, flat (no elevation). **Do not hand-author a radius here and do
+not re-declare a shared class** — set a token in `surfaces/panel.css` instead.
+
+The shell renders:
+
+| Element | Class | Notes |
+|---|---|---|
+| mobile top bar (below `lg`) | `.lg:hidden` header | wordmark, `ThemeToggle`, drawer trigger |
+| desktop rail (`lg`+) | `.portal-sidebar` | fixed deep-navy in BOTH themes; re-maps `--color-ink/-muted/-line/-soft/-card` + `--nav-hue` *inside* the panel |
+| mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | same navy surface + token remap as the rail |
+| active nav | `.nav-item--active` + `aria-current="page"` | resolved from `Astro.url.pathname` |
+
+All four of those shared classes had existed **unused** in tds-shared's
+`app.css`: the shell rendered a plain paper-coloured column with no active
+state and no drawer, which is why the panel looked nothing like the customer
+portal. `baseNav` + `navGroups` in the frontmatter feed both the rail and the
+drawer, so there is one nav source rather than two hand-kept copies.
+
+The pre-paint auth-gate spinner is a **deliberate fourth copy** of
+`.tds-spinner--lg.tds-spinner--primary`: it paints before the CSS bundle loads,
+so it cannot use the class. Its geometry/timing and the literal hex fallbacks
+are documented as KEEP-IN-SYNC in `Layout.astro`.
+
+> **Gotcha:** never put a multi-line JSX expression comment (`{/* … */}`) in
+> `Layout.astro`'s template body. Astro compiles the template to a template
+> literal and mis-parses it, failing the build with a bare
+> `Expected ")" but found "{"` pointing at the comment's own closing line
+> rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
 ## Gotchas (carried from the platform)
 

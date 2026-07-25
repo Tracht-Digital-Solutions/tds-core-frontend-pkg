@@ -8,7 +8,11 @@ import "@fontsource/lato/900.css";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "../styles/global.css";
-import { CookieNotice, LiveChatCta } from "@tracht-digital-solutions/tds-shared/components";
+import {
+  CookieNotice,
+  LiveChatCta,
+  ThemeToggle,
+} from "@tracht-digital-solutions/tds-shared/components";
 import { registry } from "virtual:panel-registry";
 import { HINT_PREFIX, BRAND_SUFFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";
 
@@ -43,10 +47,76 @@ for (const item of registry.nav) {
   bucket.push(item);
   groups.set(key, bucket);
 }
+
+// Active-nav resolution. `.nav-item--active` (tinted fill + 2px indicator bar)
+// has always existed in the shared app.css, and the links have always carried
+// `data-nav` — but nothing ever READ either, so the active treatment was dead
+// code and the panel had no wayfinding at all. Compare normalised paths so
+// `trailingSlash: "ignore"` and the `build.format: "directory"` output both
+// match.
+const norm = (p: string) => {
+  const trimmed = p.replace(/\/+$/, "");
+  return trimmed === "" ? "/" : trimmed;
+};
+const here = norm(Astro.url.pathname);
+/** Dashboard matches only exactly; every other entry also matches its subtree. */
+const isActive = (href: string) => {
+  const h = norm(href);
+  return h === "/" ? here === "/" : here === h || here.startsWith(h + "/");
+};
+
+/**
+ * SHELL ANATOMY — documented here rather than inline; see the gotcha below.
+ *
+ *   header.lg:hidden      mobile top bar (below lg): wordmark, ThemeToggle and
+ *                         the drawer trigger. Before this, below `lg` the panel
+ *                         simply stacked a full-width nav block above the
+ *                         content, with no drawer at all.
+ *   aside.portal-sidebar  desktop rail (lg and up). `.portal-sidebar` is the
+ *                         fixed deep-navy panel from tds-shared's app.css: it
+ *                         re-maps --color-ink/-muted/-line/-soft/-card and
+ *                         --nav-hue *within* the panel, so every child reads
+ *                         light automatically in BOTH themes. The class sat
+ *                         unused for a long time and this shell rendered a
+ *                         plain paper-coloured column instead — which is why the
+ *                         panel looked nothing like the customer portal.
+ *   div.nav-drawer        mobile drawer (below lg). `.nav-drawer-panel` shares
+ *                         the exact same navy surface + token remap, so the
+ *                         slide-in reads identically to the desktop rail.
+ *   main#main             the page slot.
+ *
+ * The rail and the drawer both render from `baseNav` + `navGroups`, so there is
+ * one source of truth rather than two hand-kept copies.
+ *
+ * GOTCHA — do NOT put a multi-line JSX expression comment in this file's
+ * template body. Astro compiles the template into a template literal and
+ * mis-parses it, failing the build with a bare `Expected ")" but found "{"`
+ * that points at the comment's own closing line, not at anything real. Put
+ * notes in frontmatter (like this) or use an HTML comment.
+ */
+
+// Base-service nav, declared as data so the desktop rail and the mobile drawer
+// render from ONE source instead of two hand-kept copies.
+const baseNav = [
+  { href: "/", label: "Dashboard", id: undefined as string | undefined },
+  { href: "/users", label: "Nutzer", id: "users" },
+  { href: "/wiki", label: "API-Wiki", id: "wiki" },
+  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen" },
+];
+const navGroups = [...groups.entries()].map(([label, items]) => ({
+  label,
+  items: [...items].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
+}));
 ---
 
 <!DOCTYPE html>
-<html lang={lang}>
+<!-- data-surface selects the geometry layer from tds-shared's design library
+     (surfaces/panel.css): the 8px product-UI geometry, 0.75rem chips, flat
+     (no elevation). BOTH products render this same shell, so the management
+     panel and the customer portal are guaranteed to look identical —
+     config/target.ts may branch on FRONTEND_TARGET only for functional values
+     (HINT_PREFIX, LOGIN_URL) and the wordmark suffix text, never for styling. -->
+<html lang={lang} data-surface="panel">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -73,6 +143,20 @@ for (const item of registry.nav) {
     {
       !bare && (
         <>
+          {/* Pre-paint gate. This MUST stay an inline style element: it paints
+              before the CSS bundle loads, which is the entire point — so it
+              cannot use the shared .tds-spinner class and the token fallbacks
+              have to be literal hexes.
+              NB keep angle brackets OUT of Astro expression comments: the
+              template tokenizer reads one as a tag and the build dies with
+              "Expected )".
+              KEEP IN SYNC with base.css: the geometry and timing below are
+              deliberately identical to .tds-spinner--lg.tds-spinner--primary
+              (2.25rem, 3px, 20% ring, cubic-bezier(.5,.15,.5,.85), 0.7s); only
+              the keyframe name differs, to avoid colliding with tds-spin. The
+              hex fallbacks mirror --color-paper (light #fafaf7 / dark #070a14)
+              and --color-primary (#050f68). If any of those change in
+              tds-shared, change them here too. */}
           <style is:inline>
             html.auth-checking body { visibility: hidden; }
             html.auth-checking::before {
@@ -160,39 +244,145 @@ for (const item of registry.nav) {
       bare ? (
         <slot />
       ) : (
-        <div class="md:flex min-h-screen">
-          <aside class="panel-nav w-full md:w-60 shrink-0 border-r border-[color:var(--color-border)]">
-            <header class="brand-header px-4 py-4">
-              <strong class="brand-wordmark text-lg">Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong>
-            </header>
-            <nav class="px-2 pb-6">
-              {/* Base-service pages (not extensions). */}
-              <p class="panel-nav__group-label">Verwaltung</p>
-              <a class="nav-item" href="/">Dashboard</a>
-              <a class="nav-item" href="/users" data-nav="users">Nutzer</a>
-              <a class="nav-item" href="/wiki" data-nav="wiki">API-Wiki</a>
-              <a class="nav-item" href="/einstellungen" data-nav="einstellungen">Einstellungen</a>
-              {/* Extension-contributed nav, grouped. */}
+        <div class="lg:flex min-h-screen">
+          <header
+            class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 border-b border-[color:var(--color-line)] bg-[color:var(--color-paper)]"
+          >
+            <button
+              type="button"
+              id="nav-drawer-open"
+              class="btn btn-ghost"
+              aria-controls="nav-drawer"
+              aria-expanded="false"
+              aria-label="Navigation öffnen"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
+              </svg>
+            </button>
+            <strong class="brand-wordmark text-lg"
+              >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
+            >
+            <span class="ml-auto"><ThemeToggle client:idle /></span>
+          </header>
+          <aside class="portal-sidebar hidden lg:flex lg:flex-col w-60 shrink-0 border-r">
+            <div class="px-4 py-4 flex items-center gap-2">
+              <strong class="brand-wordmark text-lg"
+                >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
+              >
+              <span class="ml-auto"><ThemeToggle client:idle /></span>
+            </div>
+            <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
+              <p class="nav-group-label">Verwaltung</p>
               {
-                [...groups.entries()].map(([label, items]) => (
-                  <div>
-                    <p class="panel-nav__group-label">{label}</p>
-                    {items
-                      .sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
-                      .map((item) => (
-                        <a class="nav-item" href={item.href} data-nav={item.id}>
-                          {item.label}
-                        </a>
-                      ))}
+                baseNav.map((item) => (
+                  <a
+                    class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
+                    href={item.href}
+                    data-nav={item.id}
+                    aria-current={isActive(item.href) ? "page" : undefined}
+                  >
+                    {item.label}
+                  </a>
+                ))
+              }
+              {
+                navGroups.map((group) => (
+                  <div class="flex flex-col gap-0.5">
+                    <p class="nav-group-label">{group.label}</p>
+                    {group.items.map((item) => (
+                      <a
+                        class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
+                        href={item.href}
+                        data-nav={item.id}
+                        aria-current={isActive(item.href) ? "page" : undefined}
+                      >
+                        {item.label}
+                      </a>
+                    ))}
                   </div>
                 ))
               }
             </nav>
           </aside>
+          <div class="nav-drawer lg:hidden" id="nav-drawer" data-open="false">
+            <div class="nav-drawer-backdrop" data-nav-drawer-close></div>
+            <div class="nav-drawer-panel">
+              <div class="px-4 py-4 flex items-center gap-2">
+                <strong class="brand-wordmark text-lg"
+                  >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
+                >
+                <button
+                  type="button"
+                  class="btn btn-ghost ml-auto"
+                  data-nav-drawer-close
+                  aria-label="Navigation schließen"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" stroke-linecap="round" />
+                  </svg>
+                </button>
+              </div>
+              <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
+                <p class="nav-group-label">Verwaltung</p>
+                {
+                  baseNav.map((item) => (
+                    <a
+                      class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
+                      href={item.href}
+                      aria-current={isActive(item.href) ? "page" : undefined}
+                    >
+                      {item.label}
+                    </a>
+                  ))
+                }
+                {
+                  navGroups.map((group) => (
+                    <div class="flex flex-col gap-0.5">
+                      <p class="nav-group-label">{group.label}</p>
+                      {group.items.map((item) => (
+                        <a
+                          class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
+                          href={item.href}
+                          aria-current={isActive(item.href) ? "page" : undefined}
+                        >
+                          {item.label}
+                        </a>
+                      ))}
+                    </div>
+                  ))
+                }
+              </nav>
+            </div>
+          </div>
+
           <main id="main" class="min-w-0 flex-1 p-6">
             <slot />
           </main>
         </div>
+        <script is:inline>
+          (function () {
+            var drawer = document.getElementById("nav-drawer");
+            var trigger = document.getElementById("nav-drawer-open");
+            if (!drawer || !trigger) return;
+            function setOpen(open) {
+              drawer.setAttribute("data-open", open ? "true" : "false");
+              trigger.setAttribute("aria-expanded", open ? "true" : "false");
+              document.body.style.overflow = open ? "hidden" : "";
+            }
+            trigger.addEventListener("click", function () {
+              setOpen(drawer.getAttribute("data-open") !== "true");
+            });
+            drawer.querySelectorAll("[data-nav-drawer-close]").forEach(function (el) {
+              el.addEventListener("click", function () {
+                setOpen(false);
+              });
+            });
+            document.addEventListener("keydown", function (e) {
+              if (e.key === "Escape") setOpen(false);
+            });
+          })();
+        </script>
       )
     }
 

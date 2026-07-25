@@ -10,12 +10,12 @@ import { widgets } from "virtual:panel-widgets";
 ---
 
 <Layout title="Dashboard">
-  <div class="dashboard-head">
-    <h1>Dashboard</h1>
-    <div class="dashboard-toolbar" data-dashboard-toolbar>
-      <button type="button" data-dashboard-edit hidden>Anpassen</button>
-      <button type="button" data-dashboard-save hidden>Speichern</button>
-      <button type="button" data-dashboard-cancel hidden>Abbrechen</button>
+  <div class="tds-page__head">
+    <h1 class="tds-page__title">Dashboard</h1>
+    <div class="tds-toolbar" data-dashboard-toolbar>
+      <button type="button" class="btn btn-ghost" data-dashboard-edit hidden>Anpassen</button>
+      <button type="button" class="btn btn-primary" data-dashboard-save hidden>Speichern</button>
+      <button type="button" class="btn btn-ghost" data-dashboard-cancel hidden>Abbrechen</button>
     </div>
   </div>
 
@@ -40,9 +40,12 @@ import { widgets } from "virtual:panel-widgets";
     }
   </div>
 
+  <!-- Edit-mode-only chrome. Raw body (never wrap an Astro inline style in
+       {`...`} — that leaks literal braces into dist). The grid itself and the
+       data-size spans live in tds-shared's app.css; `.dashboard-head` and
+       `.dashboard-toolbar` are gone, replaced by the shared `.tds-page__head`
+       and `.tds-toolbar` primitives. -->
   <style is:inline>
-    .dashboard-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .dashboard-toolbar { display: flex; gap: 0.5rem; }
     .widget-slot__controls { display: none; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
     .dashboard-grid.is-editing .widget-slot__controls { display: flex; }
     .dashboard-grid.is-editing .widget-slot {

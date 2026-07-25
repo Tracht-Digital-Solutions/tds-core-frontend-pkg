@@ -1,32 +1,56 @@
 @import "tailwindcss";
 
-/* Brand design system + shared application chrome (tokens, dark theme, resets,
-   chips/buttons/fields, header shell). Lives in tds-shared so every TDS frontend
-   stays consistent. The @fontsource imports live in Layout.astro, NOT here —
-   @tailwindcss/postcss inlines CSS @imports without rebasing the packages'
-   relative url(./files/*.woff2) refs, so Vite never emits the woff2. */
+/* Shared design library — this host is the `panel` surface. Both products
+   (tds-admin-frontend and tds-customer-frontend) are pure config over this
+   one shell, so there is exactly ONE panel design.
+
+     base.css        tokens, dark theme, resets, type primitives
+     primitives.css  cross-surface components (.btn*, .chip*, .field, the
+                     .tds-card/.tds-page/.tds-widget/.tds-list/... primitives
+                     the shell and the extensions reference)
+     app.css         dashboard chrome (.portal-sidebar, .nav-item*,
+                     .nav-drawer*, .stat-tile*, .dashboard-grid) — it also
+                     @imports primitives.css, but we list it explicitly so
+                     the dependency is visible
+     surfaces/panel.css  the geometry: 8px buttons/cards, 0.75rem chips, flat
+
+   `<html data-surface="panel">` in Layout.astro activates the layer. Do not
+   hand-author radii here, and do not re-declare a shared class: geometry
+   belongs to the surface layer. (The previous convention was the opposite —
+   "geometry stays app-local" — and it is what let one design drift into three
+   separately-maintained variations.)
+
+   The @fontsource imports live in Layout.astro, NOT here — @tailwindcss/postcss
+   inlines CSS @imports without rebasing the packages' relative
+   url(./files/*.woff2) refs, so Vite never emits the woff2. */
 @import "@tracht-digital-solutions/tds-shared/styles/base.css";
+@import "@tracht-digital-solutions/tds-shared/styles/primitives.css";
 @import "@tracht-digital-solutions/tds-shared/styles/app.css";
+@import "@tracht-digital-solutions/tds-shared/styles/surfaces/panel.css";
 
 /* Tailwind v4 ignores node_modules by default — but this stylesheet ships INSIDE
    the host package and the shell/extension classes live in sibling packages. From
-   `<scope>/tds-core-panel-frontend/src/styles/global.css`, `../../../` is the
+   `<scope>/tds-core-frontend/src/styles/global.css`, `../../../` is the
    `@tracht-digital-solutions/` scope dir, so this scans the host AND every
-   extension package for classes. (@source must come after the @imports.) */
+   extension package for classes. (@source must come after the @imports —
+   before them it is a hard error.)
+
+   NOTE the path is DEPTH-COUPLED: it only means "the scope dir" because this
+   file sits exactly three levels below it. Moving this file silently changes
+   what gets scanned, and removing the directive silently drops every Tailwind
+   utility used inside an extension island. */
 @source "../../../";
 
-:root {
-  --font-display: "Lato", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, Menlo, monospace;
-}
+/* Nothing else belongs here.
 
-/* Minimal shell layout (the base host keeps its own thin chrome; extensions
-   contribute pages, not chrome). */
-.panel-nav__group-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.6;
-  margin: 0.75rem 0.75rem 0.25rem;
-}
+   REMOVED, do not reintroduce:
+   - `:root { --font-display / --font-body / --font-mono }`. These duplicated
+     tds-shared's tokens. They "worked" only by a CSS-layer accident: base.css
+     declares them in `@theme inline`, which Tailwind emits into a
+     low-precedence layer, so this unlayered `:root` won. Nothing said it was
+     a deliberate override. The canonical stack (Lato / Plus Jakarta Sans /
+     JetBrains Mono) is the shared one now — this file agreed with it on the
+     display face and diverged on nothing that mattered, but the duplication
+     is what the design library exists to remove.
+   - `.panel-nav__group-label`, the only component class this host owned. It is
+     `.nav-group-label` in app.css now, next to the rest of the sidebar chrome. */

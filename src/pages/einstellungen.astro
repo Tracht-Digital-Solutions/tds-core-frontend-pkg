@@ -7,19 +7,23 @@ import { settings } from "virtual:panel-settings";
 ---
 
 <Layout title="Einstellungen">
-  <h1 class="text-xl font-bold mb-4">Einstellungen</h1>
-  {settings.length === 0 ? <p>Keine Einstellungen verfügbar.</p> : null}
-  <div class="settings-list flex flex-col gap-6">
-    {
-      settings.map((panel) => {
-        const Panel = panel.Component as any;
-        return (
-          <section class="card p-4" data-settings={panel.id}>
-            <h2 class="text-lg font-semibold mb-2">{panel.label}</h2>
-            <Panel />
-          </section>
-        );
-      })
-    }
-  </div>
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <h1 class="tds-page__title">Einstellungen</h1>
+    </div>
+    {settings.length === 0 ? <p class="tds-empty">Keine Einstellungen verfügbar.</p> : null}
+    <div class="settings-list flex flex-col gap-6">
+      {
+        settings.map((panel) => {
+          const Panel = panel.Component as any;
+          return (
+            <section class="tds-settings-section" data-settings={panel.id}>
+              <h2 class="tds-settings-section__title">{panel.label}</h2>
+              <Panel />
+            </section>
+          );
+        })
+      }
+    </div>
+  </section>
 </Layout>

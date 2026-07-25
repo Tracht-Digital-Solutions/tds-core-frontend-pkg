@@ -4,13 +4,15 @@ import ApiWiki from "../components/ApiWiki.tsx";
 ---
 
 <Layout title="API-Wiki">
-  <header class="mb-6">
-    <h1 class="text-xl font-bold">API-Wiki</h1>
-    <p class="text-sm opacity-70 mt-1 max-w-2xl">
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <h1 class="tds-page__title">API-Wiki</h1>
+    </div>
+    <p class="tds-page__lede max-w-2xl">
       Vollständige Routenübersicht der Base-API + aller komponierten Module —
       direkt aus den Slim-Routendefinitionen generiert. Rein intern, daher lebt
       die Referenz nur hier im Panel.
     </p>
-  </header>
-  <ApiWiki client:load />
+    <ApiWiki client:load />
+  </section>
 </Layout>
