@@ -8,9 +8,9 @@ import "@fontsource/lato/900.css";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/jetbrains-mono";
 import "../styles/global.css";
-import { CookieNotice } from "@tracht-digital-solutions/tds-shared/components";
+import { CookieNotice, LiveChatCta } from "@tracht-digital-solutions/tds-shared/components";
 import { registry } from "virtual:panel-registry";
-import { HINT_PREFIX, BRAND_SUFFIX, LOGIN_URL } from "../config/target";
+import { HINT_PREFIX, BRAND_SUFFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";
 
 const hintKey = `${HINT_PREFIX}_authed`;
 const expKey = `${HINT_PREFIX}_authed_exp`;
@@ -197,5 +197,9 @@ for (const item of registry.nav) {
     }
 
     <CookieNotice client:idle variant="panel" />
+    {/* Floating support widget — renders only when the live-chat-cta extension
+        enables this frontend (admin/customer) in the admin Einstellungen. Same
+        relative API base as every other panel call. */}
+    {!bare && <LiveChatCta client:idle frontend={FRONTEND_TARGET} lang={lang} />}
   </body>
 </html>

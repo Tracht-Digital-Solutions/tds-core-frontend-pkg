@@ -10,6 +10,9 @@ hint — port from `tds-admin`'s `Layout.astro`, DON'T reinvent), nav renderer,
 **Dashboard widget host** + per-user layout, Wiki, user management, the settings
 framework (the wizard/list shell; individual sections come from extensions),
 i18n plumbing, the API fetch wrapper (401→`/me` backstop, cross-frontend SSO).
+The shell also mounts the shared `LiveChatCta` bubble (from tds-shared) passing
+`FRONTEND_TARGET` as its frontend key — it self-hides unless the live-chat-cta
+extension enables this frontend, so it's inert until switched on in the admin.
 
 **Login lives OFF this host.** The login + password-change UI is the central site
 `tds-auth-frontend` (`auth.tracht-digital.de`). There is no in-app `/login` route here; the
