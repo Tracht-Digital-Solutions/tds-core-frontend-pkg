@@ -154,7 +154,7 @@ export default function UsersAdmin() {
       ) : (
         <ul className="users-admin__list space-y-3">
           {users.map((u) => (
-            <li key={u.id} className="users-admin__row rounded-xl border border-[color:var(--color-line)] p-4">
+            <li key={u.id} className="tds-card p-4">
               {editingId === u.id ? (
                 <UserForm
                   companies={companies}

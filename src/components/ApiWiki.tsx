@@ -76,7 +76,7 @@ export default function ApiWiki() {
         {data.routes.length} Routen · Module: {data.modules.join(", ") || "—"}
       </p>
       {groups.map(([group, routes]) => (
-        <section key={group} className="api-wiki__group card p-4 mb-4">
+        <section key={group} className="api-wiki__group tds-card p-4 mb-4">
           <h2 className="text-lg font-semibold mb-2">/{group}</h2>
           <ul className="api-wiki__routes flex flex-col gap-1">
             {routes.map((r, i) => (
