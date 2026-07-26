@@ -152,7 +152,7 @@ export default function UsersAdmin() {
       ) : users.length === 0 ? (
         <p className="tds-empty">Keine Nutzer.</p>
       ) : (
-        <ul className="users-admin__list space-y-3">
+        <ul className="tds-stack">
           {users.map((u) => (
             <li key={u.id} className="tds-card p-4">
               {editingId === u.id ? (
