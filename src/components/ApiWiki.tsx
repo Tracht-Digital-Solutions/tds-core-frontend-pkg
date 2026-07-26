@@ -67,7 +67,7 @@ export default function ApiWiki() {
   return (
     <div className="api-wiki">
       <input
-        className="api-wiki__search"
+        className="field-boxed"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Route oder Methode suchen …"
