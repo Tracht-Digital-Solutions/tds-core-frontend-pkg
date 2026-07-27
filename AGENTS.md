@@ -99,6 +99,27 @@ are documented as KEEP-IN-SYNC in `Layout.astro`.
   `tdsViteBuild` once the design system is wired.
 - `npm install --no-package-lock` (Windows lockfile is win32-only).
 
+## Type-checking extension islands (`npm run type-check:extensions`)
+
+**Nothing in the normal pipeline type-checks an extension's `.tsx`.** Three gaps
+line up to make that true, and each one looks like a gate while being none:
+
+- The **product** repos have no `src/`, so `astro check` there prints
+  `Result (0 files)`. A green product `type-check` says nothing about the 13
+  extensions it composed.
+- **`astro build` strips types with esbuild** rather than checking them, so a
+  type error in an island builds green. (Syntax errors *do* fail, which is why
+  the JSX-comment traps were caught and type slips were not.)
+- The **extension** repos don't install `tds-shared` — it's a peer dependency —
+  so `tsc` inside one cannot resolve its own imports and fails on 22 files for
+  reasons that have nothing to do with the code.
+
+`tsconfig.extcheck.json` here closes it: it checks every sibling
+`tds-ext-*-pkg/islands/**/*.tsx` against **this** repo's installed deps, with a
+`paths` block because the files sit outside the package directory. Run it after
+touching any island. It needs the full working root, so it is a local tool, not
+CI — and it is excluded from the published package.
+
 ## Per-user dashboard layout
 
 The Dashboard (`src/pages/index.astro`) renders EVERY enabled widget into

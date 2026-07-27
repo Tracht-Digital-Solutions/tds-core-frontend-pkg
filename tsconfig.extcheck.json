@@ -1,0 +1,41 @@
+// Local-only type gate for EXTENSION island code (`npm run type-check:extensions`).
+//
+// Why this exists: nothing else type-checks an extension's .tsx.
+//   * The product repos (tds-admin-frontend / tds-customer-frontend) have no
+//     `src/` at all — they are pure config — so their `astro check` reports
+//     "Result (0 files)" and proves nothing about the extensions it composes.
+//   * `astro build` compiles the islands with esbuild, which strips types
+//     without checking them, so a type error builds green.
+//   * The extension repos themselves do not install `tds-shared` (it is a peer
+//     dependency), so `tsc` inside one cannot resolve its own imports.
+//
+// It therefore checks the sibling repos' islands against THIS repo's installed
+// dependencies. That makes it a full-working-root tool only — it cannot run in
+// CI, where the siblings are not checked out. The `paths` block is required
+// because the island files live outside this package's directory, so Node
+// resolution never reaches this `node_modules`.
+//
+// Not published: package.json `files` is ["dist","src","README.md"].
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "@tracht-digital-solutions/tds-shared": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/index.d.ts"],
+      "@tracht-digital-solutions/tds-shared/components": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/components/index.d.ts"],
+      "@tracht-digital-solutions/tds-shared/design": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/design/index.d.ts"],
+      "@tracht-digital-solutions/tds-shared/i18n": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/i18n/index.d.ts"],
+      "@tracht-digital-solutions/tds-shared/permissions": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/permissions/index.d.ts"],
+      "@tracht-digital-solutions/tds-shared/schemas": ["./node_modules/@tracht-digital-solutions/tds-shared/dist/schemas/index.d.ts"]
+    }
+  },
+  "include": ["../tds-ext-*-pkg/islands/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -6,7 +6,7 @@ import {
   type PortalPermission,
   type PortalRolePreset,
 } from "@tracht-digital-solutions/tds-shared/permissions";
-import { FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
+import { ConfirmDialog, FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
 import { AUTH_API_URL, CUSTOMER_API_URL, frontendFetch } from "../lib/auth";
 
 interface Membership {
@@ -50,6 +50,8 @@ export default function UsersAdmin() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AdminUser | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setError(null);
@@ -119,10 +121,22 @@ export default function UsersAdmin() {
     }
   };
 
-  const remove = async (u: AdminUser) => {
-    if (!window.confirm(`Nutzer „${u.name ?? u.email}“ wirklich löschen?`)) return;
-    await frontendFetch(`${usersUrl}/${u.id}`, { method: "DELETE" });
-    void load();
+  // Deletion is two-step: the row button parks the user in `pendingDelete`, the
+  // <ConfirmDialog> at the end of the render performs it. `deleting` keeps both
+  // dialog buttons disabled while the request is in flight, so the confirm
+  // cannot be double-submitted — something `window.confirm()` gave us for free
+  // by blocking the thread, and which a non-blocking dialog must do explicitly.
+  const confirmRemove = async () => {
+    const u = pendingDelete;
+    if (!u) return;
+    setDeleting(true);
+    try {
+      await frontendFetch(`${usersUrl}/${u.id}`, { method: "DELETE" });
+      setPendingDelete(null);
+      void load();
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -186,7 +200,7 @@ export default function UsersAdmin() {
                   <div className="flex flex-wrap gap-2 shrink-0">
                     <button type="button" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
                     <button type="button" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
-                    <button type="button" className="btn btn-danger" onClick={() => void remove(u)}>Löschen</button>
+                    <button type="button" className="btn btn-danger" onClick={() => setPendingDelete(u)}>Löschen</button>
                   </div>
                 </div>
               )}
@@ -194,6 +208,15 @@ export default function UsersAdmin() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Nutzer „${pendingDelete?.name ?? pendingDelete?.email ?? ""}“ wirklich löschen?`}
+        message="Der Zugang und alle Firmen-Mitgliedschaften werden entfernt. Das lässt sich nicht rückgängig machen."
+        busy={deleting}
+        onConfirm={() => void confirmRemove()}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
