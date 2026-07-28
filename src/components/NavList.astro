@@ -1,0 +1,54 @@
+---
+/**
+ * The panel navigation list — rendered identically by the desktop rail and the
+ * mobile drawer.
+ *
+ * Both used to hand-copy this ~30-line block. The data was already shared, but
+ * the MARKUP was not, and the two copies had drifted: the rail set `data-nav`
+ * on every link and the drawer omitted it, so anything keying off that
+ * attribute silently worked on desktop only. Rendering both from here makes
+ * the "one source of truth" claim in Layout.astro actually true.
+ *
+ * Active state arrives pre-resolved (`item.active`) rather than as a
+ * path-matching callback, so this component stays pure presentation and the
+ * normalisation rules live in exactly one place (Layout.astro's `isActive`).
+ */
+export interface NavItem {
+  href: string;
+  label: string;
+  /** Extension/base id — the `data-nav` hook. */
+  id?: string | undefined;
+  active: boolean;
+}
+
+export interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+interface Props {
+  sections: NavSection[];
+}
+
+const { sections } = Astro.props;
+---
+
+<nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
+  {
+    sections.map((section) => (
+      <div class="flex flex-col gap-0.5">
+        <p class="nav-group-label">{section.label}</p>
+        {section.items.map((item) => (
+          <a
+            class:list={["nav-item", "px-3 py-2", item.active && "nav-item--active"]}
+            href={item.href}
+            data-nav={item.id}
+            aria-current={item.active ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        ))}
+      </div>
+    ))
+  }
+</nav>

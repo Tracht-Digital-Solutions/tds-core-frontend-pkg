@@ -76,8 +76,36 @@ The shell renders:
 All four of those shared classes had existed **unused** in tds-shared's
 `app.css`: the shell rendered a plain paper-coloured column with no active
 state and no drawer, which is why the panel looked nothing like the customer
-portal. `baseNav` + `navGroups` in the frontmatter feed both the rail and the
-drawer, so there is one nav source rather than two hand-kept copies.
+portal.
+
+**The rail and the drawer render the same two components — keep it that way.**
+`baseNav` + `navGroups` are folded into one resolved `navSections` model in the
+frontmatter, and both places render `<NavList sections={navSections} />` and
+`<BrandWordmark />` (`src/components/`). They previously shared the *data* but
+hand-copied the *markup*, and the copies had already drifted: only the rail set
+`data-nav`, so anything keying off that attribute silently worked on desktop
+only. Both nav blocks are now byte-identical in the built HTML — that is the
+cheap regression check (`grep`-count `data-nav` in `dist/index.html`: it must be
+an even number).
+
+- `NavList` takes active state **pre-resolved** (`item.active`), not a
+  path-matching callback, so the `trailingSlash`/`build.format` normalisation
+  rules stay in `Layout.astro`'s `isActive` only.
+- `BrandWordmark` is the **only** consumer of `BRAND_SUFFIX` in the shell — the
+  single per-target value, and it is *text*, not styling. Don't reintroduce the
+  import into `Layout.astro`, and don't add target-dependent styling anywhere
+  (see "Two product targets").
+- It is deliberately **local to this repo, not promoted to tds-shared-pkg**:
+  `.brand-wordmark` is already the shared abstraction, and every other surface
+  uses it at a different size/colour, so a shared component would just forward
+  `class`.
+
+The no-flash theme bootstrap is **not** hand-written here — it is
+`themeBootstrapScript` from `tds-shared/astro`, injected as
+`<script is:inline set:html={themeBootstrapScript} />`. It must stay `is:inline`
+and must stay **before** the pre-paint gate below it, because the gate's spinner
+paints in the theme's colours; a theme applied after it flashes the wrong
+backdrop. Never wrap it in a template body (`{…}`) — see the gotcha below.
 
 The pre-paint auth-gate spinner is a **deliberate fourth copy** of
 `.tds-spinner--lg.tds-spinner--primary`: it paints before the CSS bundle loads,

@@ -13,8 +13,13 @@ import {
   LiveChatCta,
   ThemeToggle,
 } from "@tracht-digital-solutions/tds-shared/components";
+import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
+import BrandWordmark from "../components/BrandWordmark.astro";
+import NavList, { type NavSection } from "../components/NavList.astro";
 import { registry } from "virtual:panel-registry";
-import { HINT_PREFIX, BRAND_SUFFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";
+// BRAND_SUFFIX is deliberately NOT imported here — it is consumed only by
+// <BrandWordmark />, which keeps the shell's single per-target value in one place.
+import { HINT_PREFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";
 
 const hintKey = `${HINT_PREFIX}_authed`;
 const expKey = `${HINT_PREFIX}_authed_exp`;
@@ -85,8 +90,10 @@ const isActive = (href: string) => {
  *                         slide-in reads identically to the desktop rail.
  *   main#main             the page slot.
  *
- * The rail and the drawer both render from `baseNav` + `navGroups`, so there is
- * one source of truth rather than two hand-kept copies.
+ * The rail and the drawer both render `<NavList sections={navSections} />` and
+ * `<BrandWordmark />`, so there is one source of truth for the MARKUP as well
+ * as the data. They previously shared the data but hand-copied the markup, and
+ * the copies had already drifted (only the rail set `data-nav`).
  *
  * GOTCHA — do NOT put a multi-line JSX expression comment in this file's
  * template body. Astro compiles the template into a template literal and
@@ -107,6 +114,25 @@ const navGroups = [...groups.entries()].map(([label, items]) => ({
   label,
   items: [...items].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
 }));
+
+// One resolved nav model, rendered by <NavList> in both the rail and the
+// drawer. Active state is baked in here so the path-normalisation rules stay
+// in this file only.
+const navSections: NavSection[] = [
+  {
+    label: "Verwaltung",
+    items: baseNav.map((item) => ({ ...item, active: isActive(item.href) })),
+  },
+  ...navGroups.map((group) => ({
+    label: group.label,
+    items: group.items.map((item) => ({
+      href: item.href,
+      label: item.label,
+      id: item.id,
+      active: isActive(item.href),
+    })),
+  })),
+];
 ---
 
 <!DOCTYPE html>
@@ -123,19 +149,11 @@ const navGroups = [...groups.entries()].map(([label, items]) => ({
     <meta name="description" content={description} />
     <meta name="robots" content="noindex,nofollow" />
 
-    <script is:inline>
-      (function () {
-        try {
-          var saved = localStorage.getItem("tds-theme");
-          if (saved === "light" || saved === "dark") {
-            document.documentElement.setAttribute("data-theme", saved);
-            return;
-          }
-        } catch (e) {}
-        var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-      })();
-    </script>
+    {/* No-flash theme bootstrap — shared with the landingpage and the blog
+        (tds-shared/astro). Must stay `is:inline` and must stay BEFORE the
+        pre-paint auth gate below: the gate's spinner is painted in the theme's
+        colours, so a theme applied after it would flash the wrong backdrop. */}
+    <script is:inline set:html={themeBootstrapScript} />
 
     <link rel="preconnect" href="https://api.tracht-digital.de" crossorigin />
     <title>{title}</title>
@@ -260,58 +278,21 @@ const navGroups = [...groups.entries()].map(([label, items]) => ({
                 <path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
               </svg>
             </button>
-            <strong class="brand-wordmark text-lg"
-              >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
-            >
+            <BrandWordmark />
             <span class="ml-auto"><ThemeToggle client:idle /></span>
           </header>
           <aside class="portal-sidebar hidden lg:flex lg:flex-col w-60 shrink-0 border-r">
             <div class="px-4 py-4 flex items-center gap-2">
-              <strong class="brand-wordmark text-lg"
-                >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
-              >
+              <BrandWordmark />
               <span class="ml-auto"><ThemeToggle client:idle /></span>
             </div>
-            <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
-              <p class="nav-group-label">Verwaltung</p>
-              {
-                baseNav.map((item) => (
-                  <a
-                    class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
-                    href={item.href}
-                    data-nav={item.id}
-                    aria-current={isActive(item.href) ? "page" : undefined}
-                  >
-                    {item.label}
-                  </a>
-                ))
-              }
-              {
-                navGroups.map((group) => (
-                  <div class="flex flex-col gap-0.5">
-                    <p class="nav-group-label">{group.label}</p>
-                    {group.items.map((item) => (
-                      <a
-                        class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
-                        href={item.href}
-                        data-nav={item.id}
-                        aria-current={isActive(item.href) ? "page" : undefined}
-                      >
-                        {item.label}
-                      </a>
-                    ))}
-                  </div>
-                ))
-              }
-            </nav>
+            <NavList sections={navSections} />
           </aside>
           <div class="nav-drawer lg:hidden" id="nav-drawer" data-open="false">
             <div class="nav-drawer-backdrop" data-nav-drawer-close></div>
             <div class="nav-drawer-panel">
               <div class="px-4 py-4 flex items-center gap-2">
-                <strong class="brand-wordmark text-lg"
-                  >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
-                >
+                <BrandWordmark />
                 <button
                   type="button"
                   class="btn btn-ghost ml-auto"
@@ -323,36 +304,7 @@ const navGroups = [...groups.entries()].map(([label, items]) => ({
                   </svg>
                 </button>
               </div>
-              <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
-                <p class="nav-group-label">Verwaltung</p>
-                {
-                  baseNav.map((item) => (
-                    <a
-                      class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
-                      href={item.href}
-                      aria-current={isActive(item.href) ? "page" : undefined}
-                    >
-                      {item.label}
-                    </a>
-                  ))
-                }
-                {
-                  navGroups.map((group) => (
-                    <div class="flex flex-col gap-0.5">
-                      <p class="nav-group-label">{group.label}</p>
-                      {group.items.map((item) => (
-                        <a
-                          class:list={["nav-item", "px-3 py-2", isActive(item.href) && "nav-item--active"]}
-                          href={item.href}
-                          aria-current={isActive(item.href) ? "page" : undefined}
-                        >
-                          {item.label}
-                        </a>
-                      ))}
-                    </div>
-                  ))
-                }
-              </nav>
+              <NavList sections={navSections} />
             </div>
           </div>
 

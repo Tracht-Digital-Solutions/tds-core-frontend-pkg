@@ -1,0 +1,31 @@
+---
+/**
+ * The panel wordmark — "Tracht *<suffix>*".
+ *
+ * Extracted because the shell renders it in THREE places (mobile top bar,
+ * desktop rail, mobile drawer) and all three were byte-identical copies.
+ *
+ * Deliberately NOT promoted to tds-shared-pkg: `.brand-wordmark` is already
+ * the shared abstraction (styles/primitives.css), and every other surface
+ * uses it at a different size and colour (the landingpage footer at
+ * `text-2xl`, the blog sidebar at `text-[1.0625rem]` with an inline ink
+ * colour, the blog footer on `#fff`). A shared component would be a
+ * pass-through for `class`, which buys nothing over the class itself.
+ *
+ * `BRAND_SUFFIX` is the only per-target difference in the whole shell, and it
+ * is TEXT, not styling — see the "no target-dependent styling" rule in
+ * AGENTS.md.
+ */
+import { BRAND_SUFFIX } from "../config/target";
+
+interface Props {
+  /** Extra utility classes; the size lives at the call site. */
+  class?: string;
+}
+
+const { class: className = "text-lg" } = Astro.props;
+---
+
+<strong class:list={["brand-wordmark", className]}
+  >Tracht<span class="accent-italic"> {BRAND_SUFFIX}</span></strong
+>
