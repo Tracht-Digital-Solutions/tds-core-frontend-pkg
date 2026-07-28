@@ -50,10 +50,10 @@ may branch on `FRONTEND_TARGET` only for *functional* values (`HINT_PREFIX`,
 `LOGIN_URL`) and the wordmark suffix text (`BRAND_SUFFIX` = "Panel"/"Portal").
 It must never branch on anything styling-related. The regression check is a
 build of both products plus a diff of the design rule sets in
-`dist/_astro/Layout.*.css` — they must be identical (134 rules at the time of
-writing). Only the Tailwind *utility* sets legitimately differ, because admin
-composes more extensions and the `@source` scan therefore generates more
-utilities.
+`dist/_astro/Layout.*.css` — they must be identical (**182 rules, 0 differences**
+as of the shared-design-library adoption; it was 134 before). Only the Tailwind
+*utility* sets legitimately differ, because admin composes more extensions and
+the `@source` scan therefore generates more utilities.
 
 ## Panel design language
 
@@ -85,8 +85,16 @@ frontmatter, and both places render `<NavList sections={navSections} />` and
 hand-copied the *markup*, and the copies had already drifted: only the rail set
 `data-nav`, so anything keying off that attribute silently worked on desktop
 only. Both nav blocks are now byte-identical in the built HTML — that is the
-cheap regression check (`grep`-count `data-nav` in `dist/index.html`: it must be
-an even number).
+cheap regression check:
+
+```bash
+grep -o 'data-nav="[^"]*"' dist/index.html | sort | uniq -c   # every key: exactly 2
+```
+
+Match the **quoted** attribute, and count per key rather than in total. A bare
+`grep -c data-nav` also catches the drawer's three `data-nav-drawer-close`
+buttons, so the total is legitimately *odd* (admin 17×2+3 = 37, customer
+9×2+3 = 21) — read as "must be even" it looks like a drift that isn't there.
 
 - `NavList` takes active state **pre-resolved** (`item.active`), not a
   path-matching callback, so the `trailingSlash`/`build.format` normalisation
