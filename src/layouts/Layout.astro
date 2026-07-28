@@ -16,7 +16,7 @@ import {
 import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 import BrandWordmark from "../components/BrandWordmark.astro";
 import NavList, { type NavSection } from "../components/NavList.astro";
-import { registry } from "virtual:panel-registry";
+import { registry } from "virtual:frontend-registry";
 // BRAND_SUFFIX is deliberately NOT imported here — it is consumed only by
 // <BrandWordmark />, which keeps the shell's single per-target value in one place.
 import { HINT_PREFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";

@@ -26,7 +26,7 @@ const BASE_ROUTES: ReadonlyArray<{ pattern: string; entrypoint: string }> = [
 
 export function coreFrontendBase(): AstroIntegration {
   return {
-    name: "tds-core-panel-base",
+    name: "tds-core-frontend-base",
     hooks: {
       "astro:config:setup": ({ injectRoute }) => {
         for (const route of BASE_ROUTES) {

@@ -118,6 +118,20 @@ are documented as KEEP-IN-SYNC in `Layout.astro`.
 > `Expected ")" but found "{"` pointing at the comment's own closing line
 > rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
+## Virtual modules (renamed)
+
+The shell imports three build-time virtual modules from `frontend-contract`:
+`virtual:frontend-registry` (Layout), `virtual:frontend-widgets`
+(`pages/index.astro`), `virtual:frontend-settings` (`pages/einstellungen.astro`),
+declared in `src/env.d.ts`. They were `virtual:panel-*` — the last `panel-`
+names in the SDK. The contract still resolves the old spellings as deprecated
+aliases, so **don't "fix" a stale `virtual:panel-*` reference by assuming it is
+broken** — it works; it is just not canonical. Use `virtual:frontend-*` in new
+code. The integration is `tds-core-frontend-base` (was `tds-core-panel-base`).
+
+The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
+`.tds-panel/`). Build artifact — an old sibling directory may linger locally.
+
 ## Gotchas (carried from the platform)
 
 - Astro can't hydrate a component named only by a string — the widget/settings
