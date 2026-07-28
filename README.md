@@ -49,8 +49,25 @@ export default defineConfig({
 ```bash
 npm install --no-package-lock   # contract + tds-shared-pkg from GitHub Packages (NPM_TOKEN)
 npm run type-check              # tsc --noEmit
+npm run test:run                # vitest
 npm run build                   # tsup → dist/astro.js (the integration)
 ```
+
+## Tests
+
+`npm run test:run` — 61 tests over the framework-agnostic half of the host. The
+`.astro` shell and the React islands stay on the product build + `astro check`.
+
+| Suite | Pins |
+|---|---|
+| `src/lib/auth.test.ts` | the **401 backstop** — a 401 is confirmed against `/me`, and only a `/me` that *also* 401s ends the session; one redirect under parallel 401s; the `?next=` round-trip; hint lifecycle incl. blocked storage |
+| `src/lib/dashboardLayout.test.ts` | saved-order application, unknown widgets appended **still visible**, and the progressive-enhancement promise: no layout / API error / API unreachable all leave every widget visible in authored order |
+| `src/config/target.test.ts` | `PUBLIC_FRONTEND_TARGET` selection, and that the two products get **different** `HINT_PREFIX` values |
+| `src/astro.test.ts` | the injected base routes resolve to files that exist, are package subpaths, and that no in-app `/login` route returns |
+
+Two of these guard documented incidents: the blanket `401 → logout` that looped
+freshly-logged-in users back to the login, and the stale `dist` that kept
+injecting a removed `/login` route and ENOENT-ed the product build.
 
 Push to `main` publishes a `@dev` prerelease; the manual **Release** button
 publishes `@latest` + tags. Product repos then repin to the new `^version`.
