@@ -45,38 +45,89 @@ contact-tickets, live-chat-cta, website-cms, blog-cms, lexware, customers,
 billing, tools, messages, projects, documents); **customer** composes 5
 (support-tickets, billing, messages, projects, documents).
 
-**There is exactly ONE panel design, and it is enforced.** `config/target.ts`
-may branch on `FRONTEND_TARGET` only for *functional* values (`HINT_PREFIX`,
-`LOGIN_URL`) and the wordmark suffix text (`BRAND_SUFFIX` = "Panel"/"Portal").
-It must never branch on anything styling-related. The regression check is a
-build of both products plus a diff of the design rule sets in
-`dist/_astro/Layout.*.css` — they must be identical (**182 rules, 0 differences**
-as of the shared-design-library adoption; it was 134 before). Only the Tailwind
-*utility* sets legitimately differ, because admin composes more extensions and
-the `@source` scan therefore generates more utilities.
+**ONE panel design, ONE accent axis.** `config/target.ts` may branch on
+`FRONTEND_TARGET` only for *functional* values (`HINT_PREFIX`, `LOGIN_URL`), the
+wordmark suffix text (`BRAND_SUFFIX` = "Panel"/"Portal"), and — since 0.13.0 —
+the **accent hue**, which `Layout.astro` emits as `<html data-frontend>` and
+tds-shared's `surfaces/panel.css` turns into a colour: management reads the
+brand navy, the customer portal reads teal, so a user with both open knows
+which surface they are on.
+
+That is the *whole* difference. It is one token block in `panel.css`
+(`[data-surface="panel"][data-frontend="customer"]`, custom properties only,
+pinned by `design.test.ts`) — **no component anywhere branches on the target**,
+and `target.ts` still carries no class names, no conditional components and no
+second layout. Everything else about the two products stays identical.
+
+The old regression check — diffing the design rule sets in
+`dist/_astro/Layout.*.css` for **zero** differences — therefore no longer holds
+verbatim: the two builds now legitimately differ by that one token block. The
+check is "identical **apart from** the `[data-frontend="customer"]` rule".
+(Tailwind *utility* sets have always differed legitimately, because admin
+composes more extensions and the `@source` scan generates more utilities.)
 
 ## Panel design language
 
 This host is the **`panel` surface** of the shared design library in
-tds-shared-pkg. `Layout.astro` sets `<html data-surface="panel">`, and
-`styles/global.css` imports `base.css` → `primitives.css` → `app.css` →
+tds-shared-pkg. `Layout.astro` sets `<html data-surface="panel" data-frontend=…>`,
+and `styles/global.css` imports `base.css` → `primitives.css` → `app.css` →
 `surfaces/panel.css`. The surface layer owns the geometry: 8px buttons/cards,
-`0.75rem` chips, flat (no elevation). **Do not hand-author a radius here and do
-not re-declare a shared class** — set a token in `surfaces/panel.css` instead.
+`0.75rem` chips, and (since tds-shared 0.15.0) a **soft resting elevation** that
+lifts on hover. **Do not hand-author a radius or a colour here and do not
+re-declare a shared class** — set a token in `surfaces/panel.css` instead.
 
 The shell renders:
 
 | Element | Class | Notes |
 |---|---|---|
 | mobile top bar (below `lg`) | `.lg:hidden` header | wordmark, `ThemeToggle`, drawer trigger |
-| desktop rail (`lg`+) | `.portal-sidebar` | fixed deep-navy in BOTH themes; re-maps `--color-ink/-muted/-line/-soft/-card` + `--nav-hue` *inside* the panel |
-| mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | same navy surface + token remap as the rail |
+| desktop rail (`lg`+) | `.portal-sidebar` | gradient dark panel in BOTH themes; re-maps `--color-ink/-muted/-line/-soft/-card` + `--nav-hue` *inside* the panel |
+| rail head / foot | `.sidebar-head` / `.sidebar-foot` | wordmark + collapse toggle; `ThemeToggle` + target label |
+| mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | same surface + token remap as the rail |
+| nav row | `.nav-item` + `.nav-item__icon` / `__label` | icon/label grid; hue from the section's `--nav-hue` |
 | active nav | `.nav-item--active` + `aria-current="page"` | resolved from `Astro.url.pathname` |
+| page canvas | `.panel-main` | accent-tinted canvas + one radial glow |
+| widget slot | `.widget-slot` + `.widget-slot__icon` | carries `--tds-widget-hue` |
 
-All four of those shared classes had existed **unused** in tds-shared's
-`app.css`: the shell rendered a plain paper-coloured column with no active
-state and no drawer, which is why the panel looked nothing like the customer
-portal.
+Those shared classes had existed **unused** in tds-shared's `app.css`: the shell
+rendered a plain paper-coloured column with no active state and no drawer, which
+is why the panel looked nothing like the customer portal.
+
+**Colour is assigned in `lib/panelHues.ts`, not in the markup.** `app.css` has
+always read `--nav-hue` (and, since 0.15.0, `--tds-widget-hue`) and *nothing
+ever set either*, so the rail was one grey column and the dashboard a grid of
+identical white cards. `hueForKey()` maps nav-group keys and widget ids to the
+categorical palette, with a stable string hash as the fallback so a brand-new
+extension is colour-coded on its first build. Deriving it from ids the
+extensions already declare is deliberate: putting `hue`/`icon` on
+`WidgetManifest` would mean a `frontend-contract` minor plus a release of all 13
+extension repos before one pixel changed. If extensions ever need to override
+their own colour, that is an additive contract minor and this becomes the
+fallback.
+
+**Nav icons come from the manifest.** `NavEntry.icon` has been in the contract
+from the start and every extension declares one (`life-buoy`, `receipt`,
+`folder-kanban`, …); the shell's nav mapping used to copy `{href, label, id}`
+and silently drop it. `components/Icon.astro` is the icon set the contract
+refers to — a hand-inlined Lucide path map, **no dependency**, server-rendered,
+with a `square` fallback so an unknown key still lines up in the grid rather
+than collapsing the column. Add a glyph by adding a key to its `PATHS`.
+
+**Nav group keys are normalised.** Groups arrive as bare ids and
+`.nav-group-label` uppercases them, so the rail used to read
+"SUPPORT / ABRECHNUNG / CONTENT / WORK" — raw identifiers in a German/English
+mix. `normaliseGroup()` folds case/whitespace (so an extension writing
+"Verwaltung" joins the base shell's own section instead of growing a duplicate
+heading with one orphaned link under it) and `groupLabel()` maps them to German.
+
+**The collapsed rail is a real feature now.** `.portal-sidebar.collapsed` had
+exactly one rule in `app.css` — hide the active indicator — and no shell ever
+rendered a control to add the class, so it was unreachable half-styled dead
+code. `lib/sidebarCollapse.ts` is the control: it persists to `localStorage`
+(per device, not per user — it is a viewport preference, so it does not belong
+in the `/me` dashboard-layout record), suppresses the width transition when
+restoring on load, labels the *action* rather than the state, and no-ops both
+when the rail is absent (the `bare` layout) and when storage throws.
 
 **The rail and the drawer render the same two components — keep it that way.**
 `baseNav` + `navGroups` are folded into one resolved `navSections` model in the
@@ -118,7 +169,10 @@ backdrop. Never wrap it in a template body (`{…}`) — see the gotcha below.
 The pre-paint auth-gate spinner is a **deliberate fourth copy** of
 `.tds-spinner--lg.tds-spinner--primary`: it paints before the CSS bundle loads,
 so it cannot use the class. Its geometry/timing and the literal hex fallbacks
-are documented as KEEP-IN-SYNC in `Layout.astro`.
+are documented as KEEP-IN-SYNC in `Layout.astro`. Note the gate backdrop paints
+**`--tds-panel-canvas`, not `--color-paper`** — the page sits on the tinted
+canvas since tds-shared 0.15.0, so painting plain paper would step colour the
+moment the bundle lands.
 
 > **Gotcha:** never put a multi-line JSX expression comment (`{/* … */}`) in
 > `Layout.astro`'s template body. Astro compiles the template to a template

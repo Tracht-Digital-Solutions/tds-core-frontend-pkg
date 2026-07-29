@@ -32,7 +32,10 @@ function injectedRoutes(): { pattern: string; entrypoint: string }[] {
 
 describe("integration envelope", () => {
   it("has a stable name", () => {
-    expect(coreFrontendBase().name).toBe("tds-core-panel-base");
+    // Left behind by the panel -> frontend rename: src/astro.ts renamed the
+    // integration to `tds-core-frontend-base` but this assertion kept the old
+    // value, so the suite has been red on a clean checkout since.
+    expect(coreFrontendBase().name).toBe("tds-core-frontend-base");
   });
 
   it("registers the config:setup hook", () => {
