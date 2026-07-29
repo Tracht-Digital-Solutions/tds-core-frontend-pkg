@@ -140,6 +140,31 @@ code. The integration is `tds-core-frontend-base` (was `tds-core-panel-base`).
 The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 `.tds-panel/`). Build artifact — an old sibling directory may linger locally.
 
+## Tests
+
+`npm run test:run` (vitest). DOM suites opt into jsdom via a
+`@vitest-environment` docblock; the rest run in node. 61 tests covering
+`lib/auth`, `lib/dashboardLayout`, `config/target` and `astro.ts` — the `.astro`
+shell and the islands stay on the product build + `astro check`.
+
+- **`auth.test.ts` is the 401-backstop guard.** Injecting a blanket
+  `redirectToLogin()` into `onUnauthorized` fails
+  `returns a scoped 401 to the caller when /me still succeeds` and
+  `keeps the hint intact after a scoped 401` — verified. Do not "simplify" that
+  probe away; it is the fix for the loop described in the root CLAUDE.md.
+- **`redirectToLogin` latches on a module-level `redirecting` flag**, so each
+  test re-imports through `vi.resetModules()`. Without that the latch leaks and
+  later tests see zero redirects.
+- **`target.test.ts` pins that the two products get different `HINT_PREFIX`
+  values.** localStorage is per-origin, so a shared prefix would let a stale
+  admin hint reveal the portal shell before `/me` answers.
+- **`astro.test.ts` checks every injected entrypoint exists on disk.** That is
+  the stale-`dist` bug: a removed page left in `BASE_ROUTES` ENOENTs the
+  *product* build, far from the cause.
+- The dashboard tests assert the progressive-enhancement promise directly —
+  no layout, an API error and an unreachable API must all leave every widget
+  visible in authored order.
+
 ## Gotchas (carried from the platform)
 
 - Astro can't hydrate a component named only by a string — the widget/settings
