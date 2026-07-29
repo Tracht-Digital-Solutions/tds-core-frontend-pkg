@@ -6,12 +6,17 @@
 // "Anpassen" edit mode (drag reorder + visibility toggles). Widgets are all
 // present in the DOM; the layout only arranges them — no SSR/runtime needed.
 import Layout from "../layouts/Layout.astro";
+import Icon from "../components/Icon.astro";
+import { hueForKey, widgetIcon } from "../lib/panelHues";
 import { widgets } from "virtual:frontend-widgets";
 ---
 
 <Layout title="Dashboard">
   <div class="tds-page__head">
-    <h1 class="tds-page__title">Dashboard</h1>
+    <div>
+      <p class="tds-page__eyebrow">Übersicht</p>
+      <h1 class="tds-page__title">Dashboard</h1>
+    </div>
     <div class="tds-toolbar" data-dashboard-toolbar>
       <button type="button" class="btn btn-ghost" data-dashboard-edit hidden>Anpassen</button>
       <button type="button" class="btn btn-primary" data-dashboard-save hidden>Speichern</button>
@@ -25,7 +30,13 @@ import { widgets } from "virtual:frontend-widgets";
         const Widget = widget.Component as any;
         const title = (widget as any).title ?? widget.id;
         return (
-          <section class="widget-slot" data-widget={widget.id} data-size={widget.size} data-label={title}>
+          <section
+            class="widget-slot"
+            data-widget={widget.id}
+            data-size={widget.size}
+            data-label={title}
+            style={`--tds-widget-hue: ${hueForKey(widget.id)}`}
+          >
             <div class="widget-slot__controls" aria-hidden="true">
               <span class="widget-slot__handle" title="Ziehen zum Sortieren">⠿</span>
               <label class="widget-slot__toggle">
@@ -33,6 +44,9 @@ import { widgets } from "virtual:frontend-widgets";
                 <span>{title}</span>
               </label>
             </div>
+            <span class="widget-slot__icon" aria-hidden="true">
+              <Icon name={widgetIcon(widget.id)} size={16} />
+            </span>
             <Widget />
           </section>
         );
@@ -58,6 +72,11 @@ import { widgets } from "virtual:frontend-widgets";
     .dashboard-grid.is-editing .widget-slot.is-hidden { display: block; }
     .widget-slot__handle { cursor: grab; user-select: none; font-size: 1.1rem; line-height: 1; }
     .widget-slot__toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+    /* The hue icon is absolutely positioned to the SLOT's top-right (the
+       .tds-widget markup belongs to each extension and is not touched), so
+       once edit mode reveals the controls row above the widget the icon would
+       overlay it. Edit mode is chrome, not the finished view — drop it. */
+    .dashboard-grid.is-editing .widget-slot__icon { display: none; }
   </style>
 
   <script>

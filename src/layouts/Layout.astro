@@ -15,7 +15,9 @@ import {
 } from "@tracht-digital-solutions/tds-shared/components";
 import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 import BrandWordmark from "../components/BrandWordmark.astro";
+import Icon from "../components/Icon.astro";
 import NavList, { type NavSection } from "../components/NavList.astro";
+import { groupLabel, hueForKey, normaliseGroup } from "../lib/panelHues";
 import { registry } from "virtual:frontend-registry";
 // BRAND_SUFFIX is deliberately NOT imported here — it is consumed only by
 // <BrandWordmark />, which keeps the shell's single per-target value in one place.
@@ -44,12 +46,47 @@ const authApiUrl =
   (import.meta.env.PUBLIC_AUTH_API_URL as string | undefined) ??
   "https://api.tracht-digital.de/auth";
 
-// Group the composed nav for rendering: extensions contribute { group, order }.
-const groups = new Map<string, typeof registry.nav>();
+// One entry as the nav model carries it, before active-state resolution.
+interface NavInput {
+  href: string;
+  label: string;
+  id?: string | undefined;
+  icon?: string | undefined;
+  order: number;
+}
+
+// Base-service nav, declared as data so the desktop rail and the mobile drawer
+// render from ONE source instead of two hand-kept copies. The `icon` keys are
+// resolved by components/Icon.astro; `order` keeps these ahead of any
+// extension that targets this same group.
+const BASE_GROUP = "verwaltung";
+const baseNav: NavInput[] = [
+  { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
+  { href: "/users", label: "Nutzer", id: "users", icon: "users", order: 1 },
+  { href: "/wiki", label: "API-Wiki", id: "wiki", icon: "book-open", order: 2 },
+  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 3 },
+];
+
+// Group the composed nav for rendering: extensions contribute { group, order,
+// icon }. Keys are normalised (trimmed + lowercased) so an extension writing
+// "Verwaltung" lands in the SAME section as the base shell instead of growing
+// a duplicate heading with one orphaned link under it. Seeding the map with
+// the base group also fixes the section order: Verwaltung stays first, then
+// extension groups in first-appearance order.
+const groups = new Map<string, NavInput[]>();
+groups.set(BASE_GROUP, [...baseNav]);
 for (const item of registry.nav) {
-  const key = item.group ?? "Allgemein";
+  const key = normaliseGroup(item.group);
   const bucket = groups.get(key) ?? [];
-  bucket.push(item);
+  bucket.push({
+    href: item.href,
+    label: item.label,
+    id: item.id,
+    // `NavEntry.icon` has been in the contract from the start and every
+    // extension declares one; until now the shell dropped it here.
+    icon: item.icon,
+    order: item.order ?? 100,
+  });
   groups.set(key, bucket);
 }
 
@@ -102,47 +139,40 @@ const isActive = (href: string) => {
  * notes in frontmatter (like this) or use an HTML comment.
  */
 
-// Base-service nav, declared as data so the desktop rail and the mobile drawer
-// render from ONE source instead of two hand-kept copies.
-const baseNav = [
-  { href: "/", label: "Dashboard", id: undefined as string | undefined },
-  { href: "/users", label: "Nutzer", id: "users" },
-  { href: "/wiki", label: "API-Wiki", id: "wiki" },
-  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen" },
-];
-const navGroups = [...groups.entries()].map(([label, items]) => ({
-  label,
-  items: [...items].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
-}));
-
 // One resolved nav model, rendered by <NavList> in both the rail and the
 // drawer. Active state is baked in here so the path-normalisation rules stay
-// in this file only.
-const navSections: NavSection[] = [
-  {
-    label: "Verwaltung",
-    items: baseNav.map((item) => ({ ...item, active: isActive(item.href) })),
-  },
-  ...navGroups.map((group) => ({
-    label: group.label,
-    items: group.items.map((item) => ({
+// in this file only; the section `hue` drives `--nav-hue`, which app.css has
+// always read and nothing ever set — that is what makes the rail read as
+// colour-coded zones instead of one grey column.
+const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
+  label: groupLabel(key),
+  hue: hueForKey(key),
+  items: [...items]
+    .sort((a, b) => a.order - b.order)
+    .map((item) => ({
       href: item.href,
       label: item.label,
       id: item.id,
+      icon: item.icon,
       active: isActive(item.href),
     })),
-  })),
-];
+}));
 ---
 
 <!DOCTYPE html>
 <!-- data-surface selects the geometry layer from tds-shared's design library
-     (surfaces/panel.css): the 8px product-UI geometry, 0.75rem chips, flat
-     (no elevation). BOTH products render this same shell, so the management
-     panel and the customer portal are guaranteed to look identical —
-     config/target.ts may branch on FRONTEND_TARGET only for functional values
-     (HINT_PREFIX, LOGIN_URL) and the wordmark suffix text, never for styling. -->
-<html lang={lang} data-surface="panel">
+     (surfaces/panel.css): the 8px product-UI geometry, 0.75rem chips and,
+     since 0.15.0, a soft resting elevation.
+
+     data-frontend selects the ACCENT within that layer, and is the only
+     styling value FRONTEND_TARGET is allowed to drive: management reads the
+     brand navy, the customer portal reads teal, so a user with both open
+     knows at a glance which surface they are on. Everything else about the
+     two products stays identical — one shell, one component set, one
+     geometry. The accent is a single token block in surfaces/panel.css
+     ([data-surface="panel"][data-frontend="customer"]); no component
+     anywhere branches on the target. -->
+<html lang={lang} data-surface="panel" data-frontend={FRONTEND_TARGET}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -172,16 +202,22 @@ const navSections: NavSection[] = [
               deliberately identical to .tds-spinner--lg.tds-spinner--primary
               (2.25rem, 3px, 20% ring, cubic-bezier(.5,.15,.5,.85), 0.7s); only
               the keyframe name differs, to avoid colliding with tds-spin. The
-              hex fallbacks mirror --color-paper (light #fafaf7 / dark #070a14)
-              and --color-primary (#050f68). If any of those change in
-              tds-shared, change them here too. */}
+              hex fallbacks mirror --color-primary (#050f68) and the panel
+              CANVAS, not --color-paper: since 0.15.0 the page sits on
+              --tds-panel-canvas, a 4% accent tint over paper, so painting the
+              gate in plain paper would step to a different colour the moment
+              the bundle lands. Preferring the token and falling back to its
+              computed literal (light #f0f1f1 / dark #0d101d) keeps the reveal
+              seamless. The customer target's teal tint differs by ~1%, which
+              is not worth a second literal for the few ms before CSS loads.
+              If those tokens change in tds-shared, change these too. */}
           <style is:inline>
             html.auth-checking body { visibility: hidden; }
             html.auth-checking::before {
               content: ""; position: fixed; inset: 0; z-index: 2147483646;
-              background: var(--color-paper, #fafaf7);
+              background: var(--tds-panel-canvas, #f0f1f1);
             }
-            html[data-theme="dark"].auth-checking::before { background: var(--color-paper, #070a14); }
+            html[data-theme="dark"].auth-checking::before { background: var(--tds-panel-canvas, #0d101d); }
             html.auth-checking::after {
               content: ""; position: fixed; inset: 0; margin: auto; z-index: 2147483647;
               width: 2.25rem; height: 2.25rem; border-radius: 9999px;
@@ -282,11 +318,29 @@ const navSections: NavSection[] = [
             <span class="ml-auto"><ThemeToggle client:idle /></span>
           </header>
           <aside class="portal-sidebar hidden lg:flex lg:flex-col w-60 shrink-0 border-r">
-            <div class="px-4 py-4 flex items-center gap-2">
-              <BrandWordmark />
-              <span class="ml-auto"><ThemeToggle client:idle /></span>
+            <div class="sidebar-head px-4 py-4 flex items-center gap-2">
+              <span class="sidebar-hide-collapsed"><BrandWordmark /></span>
+              <button
+                type="button"
+                class="btn btn-ghost ml-auto px-2"
+                data-sidebar-toggle
+                aria-controls="panel-nav"
+                aria-expanded="true"
+                aria-label="Navigation einklappen"
+              >
+                <span data-expanded-icon><Icon name="chevrons-left" /></span>
+                <span data-collapsed-icon hidden><Icon name="chevrons-right" /></span>
+              </button>
             </div>
-            <NavList sections={navSections} />
+            <div id="panel-nav" class="flex-1 overflow-y-auto">
+              <NavList sections={navSections} />
+            </div>
+            <div class="sidebar-foot mt-auto px-4 py-3 flex items-center gap-2">
+              <ThemeToggle client:idle />
+              <span class="sidebar-hide-collapsed text-xs" style="color: var(--color-muted)">
+                {FRONTEND_TARGET === "customer" ? "Kundenportal" : "Management"}
+              </span>
+            </div>
           </aside>
           <div class="nav-drawer lg:hidden" id="nav-drawer" data-open="false">
             <div class="nav-drawer-backdrop" data-nav-drawer-close></div>
@@ -308,8 +362,10 @@ const navSections: NavSection[] = [
             </div>
           </div>
 
-          <main id="main" class="min-w-0 flex-1 p-6">
-            <slot />
+          <main id="main" class="panel-main min-w-0 flex-1 p-6">
+            <div class="mx-auto w-full max-w-[90rem]">
+              <slot />
+            </div>
           </main>
         </div>
         <script is:inline>
@@ -334,6 +390,10 @@ const navSections: NavSection[] = [
               if (e.key === "Escape") setOpen(false);
             });
           })();
+        </script>
+        <script>
+          import { initSidebarCollapse } from "../lib/sidebarCollapse";
+          initSidebarCollapse();
         </script>
       )
     }

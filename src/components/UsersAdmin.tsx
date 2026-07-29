@@ -198,8 +198,8 @@ export default function UsersAdmin() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
-                    <button type="button" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
-                    <button type="button" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
                     <button type="button" className="btn btn-danger" onClick={() => setPendingDelete(u)}>Löschen</button>
                   </div>
                 </div>
@@ -235,11 +235,16 @@ function PermissionPicker({
     <div>
       <div className="flex flex-wrap gap-2 mb-3">
         {(Object.keys(PORTAL_ROLE_PRESETS) as PortalRolePreset[]).map((preset) => (
-          <button key={preset} type="button" className="text-xs" onClick={() => onChange([...PORTAL_ROLE_PRESETS[preset].permissions])}>
+          <button
+            key={preset}
+            type="button"
+            className="btn btn-ghost text-xs"
+            onClick={() => onChange([...PORTAL_ROLE_PRESETS[preset].permissions])}
+          >
             {PORTAL_ROLE_PRESETS[preset].label}
           </button>
         ))}
-        <button type="button" className="text-xs" onClick={() => onChange([])}>Keine</button>
+        <button type="button" className="btn btn-ghost text-xs" onClick={() => onChange([])}>Keine</button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {PORTAL_PERMISSIONS.map((key) => (
@@ -309,11 +314,21 @@ function UserForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
           <span className="text-sm mb-1 block">E-Mail</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            className="field-boxed w-full"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </label>
         <label className="block">
           <span className="text-sm mb-1 block">Name</span>
-          <input value={name ?? ""} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="field-boxed w-full"
+            value={name ?? ""}
+            onChange={(e) => setName(e.target.value)}
+          />
         </label>
       </div>
 
@@ -351,7 +366,12 @@ function UserForm({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm">Firmen &amp; Berechtigungen</span>
-            <button type="button" className="text-xs" onClick={addMembership} disabled={availableCompanies.length === 0}>
+            <button
+              type="button"
+              className="btn btn-ghost text-xs"
+              onClick={addMembership}
+              disabled={availableCompanies.length === 0}
+            >
               + Firma hinzufügen
             </button>
           </div>
@@ -359,9 +379,13 @@ function UserForm({
             <p className="text-xs opacity-60">Keine Firma zugeordnet — dieses Konto kann sich anmelden, sieht aber kein Portal.</p>
           ) : null}
           {memberships.map((m, i) => (
-            <div key={m.customerId} className="rounded-lg border border-[color:var(--color-line)] p-3 space-y-3">
+            <div key={m.customerId} className="tds-card p-3 space-y-3">
               <div className="flex items-center gap-3">
-                <select value={String(m.customerId)} onChange={(e) => updateMembership(i, { customerId: Number(e.target.value) })}>
+                <select
+                  className="field-boxed"
+                  value={String(m.customerId)}
+                  onChange={(e) => updateMembership(i, { customerId: Number(e.target.value) })}
+                >
                   {companies
                     .filter((c) => c.id === m.customerId || !usedCompanyIds.has(c.id))
                     .map((c) => (
@@ -381,8 +405,14 @@ function UserForm({
       )}
 
       <div className="flex gap-3">
-        <button type="submit" disabled={email.trim() === ""}>{editing ? "Speichern" : "Anlegen"}</button>
-        {onCancel ? <button type="button" onClick={onCancel}>Abbrechen</button> : null}
+        <button type="submit" className="btn btn-primary" disabled={email.trim() === ""}>
+          {editing ? "Speichern" : "Anlegen"}
+        </button>
+        {onCancel ? (
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            Abbrechen
+          </button>
+        ) : null}
       </div>
     </form>
   );

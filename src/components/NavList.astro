@@ -9,21 +9,28 @@
  * attribute silently worked on desktop only. Rendering both from here makes
  * the "one source of truth" claim in Layout.astro actually true.
  *
- * Active state arrives pre-resolved (`item.active`) rather than as a
- * path-matching callback, so this component stays pure presentation and the
- * normalisation rules live in exactly one place (Layout.astro's `isActive`).
+ * Active state and the section hue arrive pre-resolved (`item.active`,
+ * `section.hue`) rather than as callbacks, so this component stays pure
+ * presentation and the rules live in exactly one place each — path
+ * normalisation in Layout.astro's `isActive`, colour in lib/panelHues.ts.
  */
+import Icon from "./Icon.astro";
+
 export interface NavItem {
   href: string;
   label: string;
   /** Extension/base id — the `data-nav` hook. */
   id?: string | undefined;
+  /** Icon key from the extension's manifest (`NavEntry.icon`). */
+  icon?: string | undefined;
   active: boolean;
 }
 
 export interface NavSection {
   label: string;
   items: NavItem[];
+  /** CSS value for `--nav-hue` — see lib/panelHues.ts. */
+  hue?: string | undefined;
 }
 
 interface Props {
@@ -36,16 +43,20 @@ const { sections } = Astro.props;
 <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
   {
     sections.map((section) => (
-      <div class="flex flex-col gap-0.5">
+      <div class="nav-group flex flex-col gap-0.5" style={`--nav-hue: ${section.hue}`}>
         <p class="nav-group-label">{section.label}</p>
         {section.items.map((item) => (
           <a
             class:list={["nav-item", "px-3 py-2", item.active && "nav-item--active"]}
             href={item.href}
             data-nav={item.id}
+            data-tip={item.label}
             aria-current={item.active ? "page" : undefined}
           >
-            {item.label}
+            <span class="nav-item__icon">
+              <Icon name={item.icon} />
+            </span>
+            <span class="nav-item__label">{item.label}</span>
           </a>
         ))}
       </div>

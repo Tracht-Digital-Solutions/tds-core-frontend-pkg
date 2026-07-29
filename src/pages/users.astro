@@ -6,7 +6,10 @@ import UsersAdmin from "../components/UsersAdmin.tsx";
 <Layout title="Nutzerverwaltung">
   <section class="tds-page">
     <div class="tds-page__head">
-      <h1 class="tds-page__title">Nutzerverwaltung</h1>
+      <div>
+        <p class="tds-page__eyebrow">Zugriff</p>
+        <h1 class="tds-page__title">Nutzerverwaltung</h1>
+      </div>
     </div>
     <UsersAdmin client:load />
   </section>

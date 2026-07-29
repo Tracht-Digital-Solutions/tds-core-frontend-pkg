@@ -8,6 +8,14 @@
  * The hint key differs per panel so a stale admin hint can't reveal the customer
  * panel; the httpOnly session cookie is still shared (Domain=.tracht-digital.de)
  * so cross-panel SSO works where the principal has access.
+ *
+ * STYLING. `FRONTEND_TARGET` now drives exactly ONE styling value: Layout.astro
+ * writes it to `<html data-frontend>`, which selects the accent hue in
+ * tds-shared's surfaces/panel.css — management reads navy, the customer portal
+ * reads teal. That is the whole difference. Do NOT add styling branches here:
+ * no per-target class names, no conditional components, no second layout. If a
+ * future per-product difference is genuinely needed it belongs in that one
+ * token block in panel.css (which design.test.ts pins), not in this file.
  */
 export type FrontendTarget = "admin" | "customer";
 
