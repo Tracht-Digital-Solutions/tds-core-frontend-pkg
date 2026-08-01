@@ -40,7 +40,12 @@ const HUES: Record<string, string> = {
   abrechnung: "var(--color-cat-amber)",
   content: "var(--color-cat-violet)",
   work: "var(--color-cat-teal)",
-  allgemein: "var(--color-cat-rose)",
+  tools: "var(--color-cat-rose)",
+  // The catch-all bucket deliberately takes the neutral rather than a
+  // categorical hue: it is "everything that declared no group", so it has no
+  // theme to signal, and leaving it uncoloured keeps all five categorical
+  // hues meaning one real zone each.
+  allgemein: "var(--color-muted)",
 
   // Dashboard widget ids
   "tickets-open": "var(--color-cat-cyan)",

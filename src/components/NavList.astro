@@ -43,7 +43,10 @@ const { sections } = Astro.props;
 <nav class="px-2 pb-6 flex flex-col gap-0.5" aria-label="Hauptnavigation">
   {
     sections.map((section) => (
-      <div class="nav-group flex flex-col gap-0.5" style={`--nav-hue: ${section.hue}`}>
+      <div
+        class="nav-group flex flex-col gap-0.5"
+        style={section.hue ? `--nav-hue: ${section.hue}` : undefined}
+      >
         <p class="nav-group-label">{section.label}</p>
         {section.items.map((item) => (
           <a

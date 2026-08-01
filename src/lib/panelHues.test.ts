@@ -59,6 +59,25 @@ describe("hueForKey", () => {
     }
   });
 
+  it("gives every real nav group its own hue", () => {
+    // The rail's whole colour argument is that a zone is identifiable by its
+    // hue. `tools` was missing from the map and its hashed fallback happened
+    // to land on violet — the same violet as `content` — so two adjacent
+    // sidebar zones read as one. Any group added later must be mapped, not
+    // left to the hash.
+    const groups = [
+      "verwaltung",
+      "support",
+      "abrechnung",
+      "content",
+      "work",
+      "tools",
+      "allgemein",
+    ];
+    const hues = groups.map((g) => hueForKey(g));
+    expect(new Set(hues).size).toBe(groups.length);
+  });
+
   it("spreads unmapped keys across more than one categorical hue", () => {
     const hues = new Set(
       ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta"].map((k) =>

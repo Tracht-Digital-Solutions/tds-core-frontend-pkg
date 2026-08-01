@@ -105,6 +105,22 @@ extension repos before one pixel changed. If extensions ever need to override
 their own colour, that is an additive contract minor and this becomes the
 fallback.
 
+**The section hue must reach the items by INHERITANCE (0.13.1).** `NavList`
+sets `--nav-hue` inline on `.nav-group`; the items below read it. tds-shared
+0.15.0 also declared `--nav-hue` on `.nav-item` itself, which silently won —
+an element's own declaration beats an inherited value regardless of the
+ancestor's specificity, and an inline style on the PARENT never competes — so
+every active row rendered in `--color-primary` (navy on the navy rail, 1.11:1)
+and none of the colour-coding below reached the UI at all. Fixed in tds-shared
+0.15.1, which also derives `--nav-ink` (the hue lifted toward white) because
+the categorical palette is tuned for dark text on a light canvas. Two
+consequences here: `NavList` omits the `style` attribute entirely when a
+section has no hue, so the rail's white fallback applies instead of an
+invalid `--nav-hue: undefined`; and **every nav group must be mapped in
+`HUES`** — `tools` was missing, and its hashed fallback happened to land on
+the same violet as `content`, so two adjacent zones read as one. A test pins
+one-distinct-hue-per-group.
+
 **Nav icons come from the manifest.** `NavEntry.icon` has been in the contract
 from the start and every extension declares one (`life-buoy`, `receipt`,
 `folder-kanban`, …); the shell's nav mapping used to copy `{href, label, id}`
