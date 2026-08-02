@@ -45,6 +45,9 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      - name: Lint primitives
+        run: npm run lint:primitives
+
       - name: Build (tsup → dist/astro.js)
         run: npm run build
 
