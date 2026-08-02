@@ -210,7 +210,11 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               computed literal (light #f0f1f1 / dark #0d101d) keeps the reveal
               seamless. The customer target's teal tint differs by ~1%, which
               is not worth a second literal for the few ms before CSS loads.
-              If those tokens change in tds-shared, change these too. */}
+              If those tokens change in tds-shared, change these too.
+              This block also carries its OWN reduced-motion query. It cannot
+              rely on base.css's global clamp: the whole point of this style
+              is that it paints BEFORE the CSS bundle loads, so during the
+              exact window it is on screen the clamp does not exist yet. */}
           <style is:inline>
             html.auth-checking body { visibility: hidden; }
             html.auth-checking::before {
@@ -226,6 +230,12 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               animation: tds-auth-spin 0.7s cubic-bezier(0.5, 0.15, 0.5, 0.85) infinite;
             }
             @keyframes tds-auth-spin { to { transform: rotate(360deg); } }
+            @media (prefers-reduced-motion: reduce) {
+              html.auth-checking::after {
+                animation: none;
+                border-color: color-mix(in srgb, var(--color-primary, #050f68) 35%, transparent);
+              }
+            }
           </style>
 
           <script is:inline define:vars={{ authApiUrl, loginUrl: LOGIN_URL, hintKey, expKey, confirmedKey }}>

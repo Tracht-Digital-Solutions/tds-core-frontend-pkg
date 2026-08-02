@@ -42,10 +42,20 @@ export function initSidebarCollapse(): void {
   const toggle = document.querySelector<HTMLButtonElement>("[data-sidebar-toggle]");
   if (!sidebar || !toggle) return;
 
+  // Drop the compositor hint as soon as the width transition finishes.
+  // `will-change` left on permanently costs a retained layer for a rail that
+  // is static almost all of the time, which is the documented way to make
+  // `will-change` a pessimisation rather than an optimisation.
+  sidebar.addEventListener("transitionend", (event) => {
+    if (event.propertyName === "width") sidebar.classList.remove("is-animating");
+  });
+
   const apply = (collapsed: boolean, animate: boolean): void => {
     // Suppress the width transition when restoring the stored state on load,
     // so the rail does not visibly slide shut on every navigation.
     if (!animate) sidebar.style.transition = "none";
+    // Only hint the compositor when a transition is actually about to run.
+    if (animate) sidebar.classList.add("is-animating");
     sidebar.classList.toggle("collapsed", collapsed);
     // The button controls the rail, so it owns the expanded state; the label
     // has to describe the ACTION, not the current state.
@@ -65,6 +75,8 @@ export function initSidebarCollapse(): void {
       // batches both style changes and animates anyway.
       void sidebar.offsetWidth;
       sidebar.style.transition = "";
+      // No transition ran, so `transitionend` will never fire to clear it.
+      sidebar.classList.remove("is-animating");
     }
   };
 

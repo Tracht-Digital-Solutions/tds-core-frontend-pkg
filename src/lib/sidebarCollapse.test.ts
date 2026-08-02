@@ -37,6 +37,45 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+describe("will-change gating", () => {
+  /**
+   * `.is-animating` is what gates `will-change: width` in tds-shared's
+   * app.css. Held permanently it costs a retained compositor layer for a rail
+   * that is static ~100% of the time — the textbook way to turn `will-change`
+   * into a pessimisation — so it must go on only for the toggle and come off
+   * again when the transition ends.
+   */
+  it("does not hint the compositor when restoring state on load", () => {
+    // The restore path deliberately suppresses the transition, so no
+    // `transitionend` will ever fire to clean the class up.
+    localStorage.setItem(STORAGE_KEY, "1");
+    initSidebarCollapse();
+    expect(sidebar().classList.contains("is-animating")).toBe(false);
+  });
+
+  it("hints on toggle and clears the hint when the width settles", () => {
+    initSidebarCollapse();
+    toggle().click();
+    expect(sidebar().classList.contains("is-animating")).toBe(true);
+
+    sidebar().dispatchEvent(
+      Object.assign(new Event("transitionend"), { propertyName: "width" }),
+    );
+    expect(sidebar().classList.contains("is-animating")).toBe(false);
+  });
+
+  it("ignores a transitionend for any other property", () => {
+    // The rail transitions only `width`, but its children animate colour and
+    // those events bubble up to this same listener.
+    initSidebarCollapse();
+    toggle().click();
+    sidebar().dispatchEvent(
+      Object.assign(new Event("transitionend"), { propertyName: "background-color" }),
+    );
+    expect(sidebar().classList.contains("is-animating")).toBe(true);
+  });
+});
+
 describe("initSidebarCollapse", () => {
   it("starts expanded when nothing is stored", () => {
     initSidebarCollapse();
