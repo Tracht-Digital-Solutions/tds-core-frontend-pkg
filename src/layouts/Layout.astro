@@ -63,7 +63,9 @@ const BASE_GROUP = "verwaltung";
 const baseNav: NavInput[] = [
   { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
   { href: "/users", label: "Nutzer", id: "users", icon: "users", order: 1 },
-  { href: "/wiki", label: "API-Wiki", id: "wiki", icon: "book-open", order: 2 },
+  // Label is "Wiki", not "API-Wiki": the page leads with the user-facing FAQ
+  // and only the admin build appends the API route map (see pages/wiki.astro).
+  { href: "/wiki", label: "Wiki", id: "wiki", icon: "book-open", order: 2 },
   { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 3 },
 ];
 

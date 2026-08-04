@@ -19,7 +19,10 @@ extension enables this frontend, so it's inert until switched on in the admin.
 pre-paint gate and `redirectToLogin`/`logout` bounce to `LOGIN_URL`
 (`PUBLIC_LOGIN_URL`, default `https://auth.tracht-digital.de`) with an **absolute**
 `?next=`. Because the session cookie is `Domain=.tracht-digital.de`, a login there
-is valid here immediately. Critical: the gate must **probe `/me` when there is no
+is valid here immediately — but the login page no longer *says* so: that copy was
+removed there on purpose, and the explanation now lives in the `/wiki` FAQ (see
+below), i.e. behind the login where the people it concerns already are. Critical:
+the gate must **probe `/me` when there is no
 local hint** and seed the hint on success — a missing hint after arriving from the
 login site is normal (localStorage is per-origin), so it must NOT redirect on a
 missing hint or it loops against the login (which sees the valid cookie and bounces
@@ -278,6 +281,29 @@ Progressive enhancement: no saved layout or an unreachable API ⇒ every widget
 stays visible in authored order. The edit-mode CSS is an inline `<style>` in the
 page (raw, per [[project_astro_inline_script_raw]]); the script is a real module
 import (`<script>import { initDashboardLayout }…`), not inline, so no brace trap.
+
+## Wiki (`/wiki`) — FAQ + API reference
+
+Two halves on one page, and the nav label is plain **"Wiki"** (it used to be
+"API-Wiki", which was wrong for the customer portal — that build has no API half).
+
+- **FAQ (both targets).** `src/content/faq.ts` holds the entries; `FaqList.astro`
+  renders one native `<details>` each — no island, no JS, and **no CSS of its own**
+  (`.tds-card` + Tailwind utilities only). Answers are a **plain-text paragraph
+  list** and are interpolated, never `set:html`; keep it that way, and keep the
+  `id`s stable — they are the `/wiki#faq-<id>` anchors. `target` scopes an entry to
+  one product; omit it for both. `faq.test.ts` pins ids, scoping and the no-markup
+  rule.
+  This is where the **central-login/SSO explanation lives** (`sso-scope`,
+  `sso-logout`, `password-change`): `tds-auth-frontend`'s login page deliberately
+  no longer advertises that one login covers Verwaltung/Portal/Tools — don't move
+  that copy back in front of the login. Platform-behaviour answers belong here (they
+  ship with the shell that implements them); editable *support* content belongs in
+  the Live-Chat-Widget FAQ (`tds-ext-live-chat-cta-pkg`, DB-backed, edited under
+  `/live-chat`) — the same three entries are seeded there for the widget.
+- **API reference (admin target only).** `ApiWiki.tsx` against `/wiki.json`, which
+  is admin-gated at the endpoint — so the customer build omits the section instead
+  of rendering a guaranteed "Nur für Admins." error.
 
 ## User management (Nutzerverwaltung)
 
