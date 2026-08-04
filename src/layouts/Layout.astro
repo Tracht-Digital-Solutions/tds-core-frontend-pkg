@@ -12,6 +12,7 @@ import {
   CookieNotice,
   LiveChatCta,
   ThemeToggle,
+  ToastHost,
 } from "@tracht-digital-solutions/tds-shared/components";
 import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 import BrandWordmark from "../components/BrandWordmark.astro";
@@ -410,6 +411,12 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
       )
     }
 
+    {/* The ONE toast stack for both products. Mounted unconditionally — also in
+        `bare` mode, because the login/gate page is exactly where a failure has
+        to be visible. Anything (island, plain module, console) reaches it via
+        the `tds:toast` window event; a second host anywhere would double every
+        toast, so this is the only place it may be mounted. */}
+    <ToastHost client:idle lang={lang} />
     <CookieNotice client:idle variant="panel" />
     {/* Floating support widget — renders only when the live-chat-cta extension
         enables this frontend (admin/customer) in the admin Einstellungen. Same

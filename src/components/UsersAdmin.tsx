@@ -6,7 +6,7 @@ import {
   type PortalPermission,
   type PortalRolePreset,
 } from "@tracht-digital-solutions/tds-shared/permissions";
-import { ConfirmDialog, FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
+import { ConfirmDialog, FormAlert, Spinner, toast } from "@tracht-digital-solutions/tds-shared/components";
 import { AUTH_API_URL, CUSTOMER_API_URL, frontendFetch } from "../lib/auth";
 
 interface Membership {
@@ -90,11 +90,20 @@ export default function UsersAdmin() {
     });
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
-      setNotice(data.tempPassword ? `Nutzer angelegt. Temporäres Passwort: ${data.tempPassword}` : "Nutzer angelegt.");
+      // A temporary password must be READ and copied, so it stays an in-flow
+      // notice — a toast that blends itself away after four seconds would take
+      // the credential with it. Everything else here is a transient outcome.
+      if (data.tempPassword) {
+        setNotice(`Nutzer angelegt. Temporäres Passwort: ${data.tempPassword}`);
+      } else {
+        toast.success("Nutzer angelegt.");
+      }
       setShowCreate(false);
       void load();
     } else {
-      setError(res.status === 409 ? "E-Mail existiert bereits." : `Anlegen fehlgeschlagen (HTTP ${res.status}).`);
+      toast.danger(
+        res.status === 409 ? "E-Mail existiert bereits." : `Anlegen fehlgeschlagen (HTTP ${res.status}).`,
+      );
     }
   };
 
@@ -108,8 +117,15 @@ export default function UsersAdmin() {
     if (res.ok) {
       setEditingId(null);
       void load();
+      // Used to be silent: the form just closed, which looks identical to
+      // hitting Abbrechen.
+      toast.success("Nutzer gespeichert.");
     } else {
-      setError(res.status === 409 ? "Konflikt (z. B. eigener Admin-Zugang)." : `Speichern fehlgeschlagen (HTTP ${res.status}).`);
+      toast.danger(
+        res.status === 409
+          ? "Konflikt (z. B. eigener Admin-Zugang)."
+          : `Speichern fehlgeschlagen (HTTP ${res.status}).`,
+      );
     }
   };
 
@@ -117,7 +133,13 @@ export default function UsersAdmin() {
     const res = await frontendFetch(`${usersUrl}/${u.id}/reset-password`, { method: "POST" });
     if (res.ok) {
       const d = await res.json().catch(() => ({}));
+      // Same rule as above — the new password is in-flow, not a toast.
       if (d.tempPassword) setNotice(`Neues temporäres Passwort für ${u.email}: ${d.tempPassword}`);
+      else toast.success(`Passwort für ${u.email} zurückgesetzt.`);
+    } else {
+      // There was no failure branch here at all: a rejected reset looked
+      // exactly like a successful one that happened to return no password.
+      toast.danger(`Zurücksetzen fehlgeschlagen (HTTP ${res.status}).`);
     }
   };
 
@@ -131,9 +153,16 @@ export default function UsersAdmin() {
     if (!u) return;
     setDeleting(true);
     try {
-      await frontendFetch(`${usersUrl}/${u.id}`, { method: "DELETE" });
+      // The response used to be discarded entirely — a 403 closed the dialog
+      // and reloaded the list, so the row simply reappeared with no reason.
+      const res = await frontendFetch(`${usersUrl}/${u.id}`, { method: "DELETE" });
       setPendingDelete(null);
       void load();
+      if (res.ok) toast.success(`${u.email} gelöscht.`);
+      else toast.danger(`Löschen fehlgeschlagen (HTTP ${res.status}).`);
+    } catch {
+      setPendingDelete(null);
+      toast.danger("Löschen fehlgeschlagen — die API ist nicht erreichbar.");
     } finally {
       setDeleting(false);
     }

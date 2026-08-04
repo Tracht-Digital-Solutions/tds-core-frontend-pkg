@@ -10,6 +10,7 @@
  * Progressive enhancement: with no saved layout (or the API unreachable) every
  * widget stays visible in its default order — the dashboard always works.
  */
+import { toast } from "@tracht-digital-solutions/tds-shared/toast";
 import { API_BASE, frontendFetch } from "./auth";
 
 interface LayoutRow {
@@ -66,7 +67,13 @@ export function initDashboardLayout(): void {
     .then((r) => (r.ok ? r.json() : { layout: [] }))
     .then((d: { layout?: LayoutRow[] }) => applyLayout(d.layout ?? []))
     .catch(() => {
-      /* API unreachable — leave the default order/visibility */
+      /* API unreachable — leave the default order/visibility.
+         Deliberately NO toast here. This runs on every dashboard load and a
+         failure costs the user nothing (they get the authored order, which is
+         the documented progressive-enhancement promise) — while the frontend
+         service is not yet deployed it would fire a red toast on every single
+         page view and train everyone to ignore them. Only the SAVE, which the
+         user explicitly triggered and whose work is lost, reports. */
     })
     .finally(() => {
       editBtn.hidden = false;
@@ -111,10 +118,19 @@ export function initDashboardLayout(): void {
           // Re-apply so a hidden widget collapses out of the grid immediately.
           applyLayout(layout);
           leaveEdit();
+          toast.success("Dashboard-Layout gespeichert.");
+        } else {
+          // There used to be no `else` here at all: a 401/422/500 left the
+          // toolbar exactly as it was, so a rejected save was indistinguishable
+          // from a mis-click and the user had no way to know their arrangement
+          // was never stored. Edit mode deliberately stays OPEN — the new
+          // arrangement exists only in the DOM, and leaving edit mode would
+          // quietly discard the work the save just failed to persist.
+          toast.danger(`Layout konnte nicht gespeichert werden (HTTP ${r.status}).`);
         }
       })
       .catch(() => {
-        /* keep edit mode open so the user can retry */
+        toast.danger("Layout konnte nicht gespeichert werden — die API ist nicht erreichbar.");
       })
       .finally(() => {
         saveBtn.disabled = false;

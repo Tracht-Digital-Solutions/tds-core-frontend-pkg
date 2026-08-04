@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TOAST_EVENT, type ToastDetail } from "@tracht-digital-solutions/tds-shared/toast";
 
 /**
  * The dashboard renders EVERY enabled widget at build time; this module then
@@ -58,6 +59,16 @@ const hidden = () =>
 const btn = (kind: "edit" | "save" | "cancel") =>
   document.querySelector<HTMLButtonElement>(`[data-dashboard-${kind}]`)!;
 
+/**
+ * Toasts are collected off the bus rather than out of the DOM: the save path
+ * raises them through the `tds:toast` window event, so no ToastHost has to
+ * exist here and the fixture stays exactly as it was.
+ */
+let toasts: ToastDetail[] = [];
+const collectToast = (e: Event) => {
+  toasts.push((e as CustomEvent<ToastDetail>).detail);
+};
+
 /** Resolve the layout GET with the given rows and let the promise chain settle. */
 async function loadWith(rows: Row[] | null, ok = true) {
   frontendFetch.mockResolvedValueOnce({
@@ -71,9 +82,12 @@ async function loadWith(rows: Row[] | null, ok = true) {
 beforeEach(() => {
   frontendFetch.mockReset();
   document.body.innerHTML = "";
+  toasts = [];
+  window.addEventListener(TOAST_EVENT, collectToast);
 });
 
 afterEach(() => {
+  window.removeEventListener(TOAST_EVENT, collectToast);
   document.body.innerHTML = "";
 });
 
@@ -261,7 +275,20 @@ describe("edit mode", () => {
     expect(grid().classList.contains("is-editing")).toBe(false);
   });
 
-  it("stays in edit mode when the save fails, so the user can retry", async () => {
+  it("confirms a successful save", async () => {
+    renderGrid(["a"]);
+    await loadWith([]);
+
+    btn("edit").click();
+    frontendFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    btn("save").click();
+
+    await vi.waitFor(() => expect(toasts.length).toBe(1));
+    expect(toasts[0]!.variant).toBe("success");
+    expect(toasts[0]!.message).toContain("gespeichert");
+  });
+
+  it("stays in edit mode when the save fails, and says so", async () => {
     renderGrid(["a"]);
     await loadWith([]);
 
@@ -270,18 +297,27 @@ describe("edit mode", () => {
     btn("save").click();
 
     await vi.waitFor(() => expect(btn("save").disabled).toBe(false));
+    // Both halves of the contract: the work is still there to retry, AND the
+    // user was told. Without the second, staying in edit mode reads as "the
+    // click didn't register".
     expect(grid().classList.contains("is-editing")).toBe(true);
+    expect(toasts.map((t) => t.variant)).toEqual(["danger"]);
   });
 
-  it("re-enables the save button after a failed save", async () => {
+  it("reports the HTTP status when the save is rejected", async () => {
     renderGrid(["a"]);
     await loadWith([]);
 
     btn("edit").click();
-    frontendFetch.mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+    frontendFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
     btn("save").click();
 
     await vi.waitFor(() => expect(btn("save").disabled).toBe(false));
+    expect(toasts.length).toBe(1);
+    expect(toasts[0]!.variant).toBe("danger");
+    // The status is the only clue to WHY, and it is what turns a bug report
+    // into a diagnosis (401 = session, 422 = payload, 500 = service down).
+    expect(toasts[0]!.message).toContain("500");
   });
 
   it("restores the pre-edit arrangement on cancel", async () => {
@@ -309,5 +345,19 @@ describe("edit mode", () => {
     btn("cancel").click();
 
     expect(frontendFetch).toHaveBeenCalledTimes(1); // the initial GET only
+    expect(toasts).toEqual([]); // discarding your own edit is not an outcome
+  });
+
+  it("says nothing when the initial layout load fails", async () => {
+    // The load runs on EVERY dashboard view and costs the user nothing when it
+    // fails (they get the authored order). Toasting here would fire on every
+    // page view while the frontend service is down and train everyone to
+    // ignore the red box that actually matters.
+    renderGrid(["a", "b"]);
+    frontendFetch.mockRejectedValueOnce(new TypeError("offline"));
+    initDashboardLayout();
+
+    await vi.waitFor(() => expect(btn("edit").hidden).toBe(false));
+    expect(toasts).toEqual([]);
   });
 });
