@@ -2,8 +2,8 @@
 
 The **base frontend host**, published as a package
 (`@tracht-digital-solutions/tds-core-frontend`). It ships the shell (chrome,
-pre-paint auth gate, nav), the **base pages** (Dashboard/widget host, Login, user
-management, Einstellungen, API-Wiki) and the **`coreFrontendBase` Astro integration**
+pre-paint auth gate, nav), the **base pages** (Dashboard/widget host, user
+management, Einstellungen, Wiki = FAQ + API-Referenz) and the **`coreFrontendBase` Astro integration**
 — consumed by the **product repos** (`tds-admin-frontend` / `tds-customer-frontend`),
 each of which composes this host with its own extension set + deploy pipeline.
 
@@ -30,7 +30,7 @@ export default defineConfig({
 });
 ```
 
-- `coreFrontendBase()` — `injectRoute`s the base pages (`/`, `/login`, `/users`,
+- `coreFrontendBase()` — `injectRoute`s the base pages (`/`, `/users`,
   `/einstellungen`, `/wiki`), whose entrypoints are this package's subpaths; their
   relative imports (Layout, components, lib, styles) resolve inside the package.
 - `frontendHost({ extensions })` (from `tds-frontend-contract-pkg`) — injects each
@@ -55,14 +55,15 @@ npm run build                   # tsup → dist/astro.js (the integration)
 
 ## Tests
 
-`npm run test:run` — 61 tests over the framework-agnostic half of the host. The
+`npm run test:run` — 90 tests over the framework-agnostic half of the host. The
 `.astro` shell and the React islands stay on the product build + `astro check`.
 
 | Suite | Pins |
 |---|---|
 | `src/lib/auth.test.ts` | the **401 backstop** — a 401 is confirmed against `/me`, and only a `/me` that *also* 401s ends the session; one redirect under parallel 401s; the `?next=` round-trip; hint lifecycle incl. blocked storage |
-| `src/lib/dashboardLayout.test.ts` | saved-order application, unknown widgets appended **still visible**, and the progressive-enhancement promise: no layout / API error / API unreachable all leave every widget visible in authored order |
+| `src/lib/dashboardLayout.test.ts` | saved-order application, unknown widgets appended **still visible**, the progressive-enhancement promise (no layout / API error / API unreachable all leave every widget visible in authored order), and the **save feedback**: success confirms, a rejected save reports its HTTP status and stays in edit mode, and the initial load stays silent |
 | `src/config/target.test.ts` | `PUBLIC_FRONTEND_TARGET` selection, and that the two products get **different** `HINT_PREFIX` values |
+| `src/content/faq.test.ts` | the `/wiki` FAQ: unique anchor-safe ids, per-target scoping, and that questions/answers stay **plain text** (they are interpolated, never `set:html`) |
 | `src/astro.test.ts` | the injected base routes resolve to files that exist, are package subpaths, and that no in-app `/login` route returns |
 
 Two of these guard documented incidents: the blanket `401 → logout` that looped

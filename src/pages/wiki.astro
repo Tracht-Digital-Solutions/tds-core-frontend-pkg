@@ -1,21 +1,45 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import ApiWiki from "../components/ApiWiki.tsx";
+import FaqList from "../components/FaqList.astro";
+import { faqForTarget } from "../content/faq";
+import { FRONTEND_TARGET } from "../config/target";
+
+// The API route map is admin-only at the endpoint (`/wiki.json` returns 403 for
+// everyone else), so the customer portal only renders the FAQ half instead of
+// shipping a section that can never resolve to anything but an error.
+const showApiReference = FRONTEND_TARGET === "admin";
+const faq = faqForTarget();
 ---
 
-<Layout title="API-Wiki">
+<Layout title="Wiki">
   <section class="tds-page">
     <div class="tds-page__head">
       <div>
         <p class="tds-page__eyebrow">Referenz</p>
-        <h1 class="tds-page__title">API-Wiki</h1>
+        <h1 class="tds-page__title">Wiki</h1>
       </div>
     </div>
     <p class="tds-page__lede max-w-2xl">
-      Vollständige Routenübersicht der Base-API + aller komponierten Module —
-      direkt aus den Slim-Routendefinitionen generiert. Rein intern, daher lebt
-      die Referenz nur hier im Panel.
+      Häufige Fragen zur Nutzung{
+        showApiReference ? " und die vollständige Routenübersicht der API" : ""
+      }. Rein intern, daher lebt die Referenz nur hier im Frontend.
     </p>
-    <ApiWiki client:load />
+
+    <h2 class="mt-6 mb-3 text-lg font-semibold">Häufige Fragen</h2>
+    <FaqList entries={faq} />
+
+    {
+      showApiReference && (
+        <>
+          <h2 class="mt-8 mb-3 text-lg font-semibold">API-Referenz</h2>
+          <p class="mb-3 text-sm opacity-70 max-w-2xl">
+            Vollständige Routenübersicht der Base-API + aller komponierten Module —
+            direkt aus den Slim-Routendefinitionen generiert.
+          </p>
+          <ApiWiki client:load />
+        </>
+      )
+    }
   </section>
 </Layout>

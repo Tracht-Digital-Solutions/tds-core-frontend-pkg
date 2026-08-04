@@ -14,12 +14,27 @@ The shell also mounts the shared `LiveChatCta` bubble (from tds-shared) passing
 `FRONTEND_TARGET` as its frontend key — it self-hides unless the live-chat-cta
 extension enables this frontend, so it's inert until switched on in the admin.
 
+**The shell owns the ONE `ToastHost`** (`Layout.astro`, next to `CookieNotice`,
+`client:idle`, mounted even in `bare` mode — the gate page is where a failure
+most needs to be visible). Never mount a second one anywhere, in this repo or in
+an extension: a second host doubles every toast (it detects this, renders
+nothing and warns, but don't rely on that). Everything else just *raises*
+toasts — `toast.success/…danger` from `tds-shared/toast` (plain TS) or from
+`tds-shared/components` (islands). Which primitive to use when — toast vs.
+in-flow `.tds-alert` vs. `.status-pill` — is the rule in tds-shared's AGENTS.md;
+the short version is that anything the user must **read or copy** (a temporary
+password) never goes in a toast, which is why `UsersAdmin` still keeps its
+in-flow notice for exactly those two cases.
+
 **Login lives OFF this host.** The login + password-change UI is the central site
 `tds-auth-frontend` (`auth.tracht-digital.de`). There is no in-app `/login` route here; the
 pre-paint gate and `redirectToLogin`/`logout` bounce to `LOGIN_URL`
 (`PUBLIC_LOGIN_URL`, default `https://auth.tracht-digital.de`) with an **absolute**
 `?next=`. Because the session cookie is `Domain=.tracht-digital.de`, a login there
-is valid here immediately. Critical: the gate must **probe `/me` when there is no
+is valid here immediately — but the login page no longer *says* so: that copy was
+removed there on purpose, and the explanation now lives in the `/wiki` FAQ (see
+below), i.e. behind the login where the people it concerns already are. Critical:
+the gate must **probe `/me` when there is no
 local hint** and seed the hint on success — a missing hint after arriving from the
 login site is normal (localStorage is per-origin), so it must NOT redirect on a
 missing hint or it loops against the login (which sees the valid cookie and bounces
@@ -278,6 +293,42 @@ Progressive enhancement: no saved layout or an unreachable API ⇒ every widget
 stays visible in authored order. The edit-mode CSS is an inline `<style>` in the
 page (raw, per [[project_astro_inline_script_raw]]); the script is a real module
 import (`<script>import { initDashboardLayout }…`), not inline, so no brace trap.
+
+**Saving reports its outcome, and the two failure paths differ from the load
+path on purpose.** The save handler had no `else` to its `if (r.ok)` and an
+empty `.catch()`, so a 401/422/500 was indistinguishable from a mis-click —
+this is the "Speichern tut nichts" report. It now raises a `toast.success` on
+2xx and a `toast.danger` **carrying the HTTP status** otherwise, and edit mode
+still stays open on failure because the arrangement exists only in the DOM.
+The initial `GET` deliberately stays silent: it runs on every dashboard view,
+costs the user nothing when it fails (they get the authored order), and while
+the frontend service is undeployed a toast there would fire on every page load
+and teach everyone to ignore the red box that matters. `dashboardLayout.test.ts`
+pins all four branches by listening for `tds:toast` on `window` — no ToastHost
+in the fixture, so the DOM fixture stayed untouched.
+
+## Wiki (`/wiki`) — FAQ + API reference
+
+Two halves on one page, and the nav label is plain **"Wiki"** (it used to be
+"API-Wiki", which was wrong for the customer portal — that build has no API half).
+
+- **FAQ (both targets).** `src/content/faq.ts` holds the entries; `FaqList.astro`
+  renders one native `<details>` each — no island, no JS, and **no CSS of its own**
+  (`.tds-card` + Tailwind utilities only). Answers are a **plain-text paragraph
+  list** and are interpolated, never `set:html`; keep it that way, and keep the
+  `id`s stable — they are the `/wiki#faq-<id>` anchors. `target` scopes an entry to
+  one product; omit it for both. `faq.test.ts` pins ids, scoping and the no-markup
+  rule.
+  This is where the **central-login/SSO explanation lives** (`sso-scope`,
+  `sso-logout`, `password-change`): `tds-auth-frontend`'s login page deliberately
+  no longer advertises that one login covers Verwaltung/Portal/Tools — don't move
+  that copy back in front of the login. Platform-behaviour answers belong here (they
+  ship with the shell that implements them); editable *support* content belongs in
+  the Live-Chat-Widget FAQ (`tds-ext-live-chat-cta-pkg`, DB-backed, edited under
+  `/live-chat`) — the same three entries are seeded there for the widget.
+- **API reference (admin target only).** `ApiWiki.tsx` against `/wiki.json`, which
+  is admin-gated at the endpoint — so the customer build omits the section instead
+  of rendering a guaranteed "Nur für Admins." error.
 
 ## User management (Nutzerverwaltung)
 
