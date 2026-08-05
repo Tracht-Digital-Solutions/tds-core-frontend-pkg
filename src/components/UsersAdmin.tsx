@@ -7,7 +7,8 @@ import {
   type PortalRolePreset,
 } from "@tracht-digital-solutions/tds-shared/permissions";
 import { ConfirmDialog, FormAlert, Spinner, toast } from "@tracht-digital-solutions/tds-shared/components";
-import { AUTH_API_URL, CUSTOMER_API_URL, frontendFetch } from "../lib/auth";
+import { AUTH_API_URL, frontendFetch } from "../lib/auth";
+import { fetchCompanies, type Company } from "../lib/companies";
 
 interface Membership {
   customerId: number;
@@ -27,18 +28,14 @@ interface AdminUser {
   status?: "active" | "disabled";
 }
 
-interface Company {
-  id: number;
-  name: string;
-}
-
 const usersUrl = `${AUTH_API_URL}/admin/users`;
-const companiesUrl = `${CUSTOMER_API_URL}/admin/customers`;
 
 /**
  * Core user management (Nutzerverwaltung) — the base service's own screen. Users
- * live in tds-auth-api (`/admin/users`), companies in tds-customer-api
- * (`/admin/customers`). Beyond list/create/reset/delete this now offers the full
+ * live in tds-auth-api (`/admin/users`); the company list comes from
+ * `lib/companies.ts`, which prefers the composed `tds-ext-customers` extension
+ * and falls back to the legacy customer-api (see that file for why the fallback
+ * exists). Beyond list/create/reset/delete this now offers the full
  * per-user editor: admin/support-agent/blog-author flags, account status, and
  * **company memberships with per-company portal permissions** (the fine-grained
  * RBAC). Admins bypass portal permissions, so their memberships are cleared.
@@ -56,14 +53,17 @@ export default function UsersAdmin() {
   const load = async () => {
     setError(null);
     try {
-      const [uRes, cRes] = await Promise.all([frontendFetch(usersUrl), frontendFetch(companiesUrl)]);
+      // The company list is best-effort and never throws — membership editing
+      // still works without names (it falls back to showing ids), so a list
+      // outage must not take user management down with it. `fetchCompanies`
+      // prefers the composed `tds-ext-customers` endpoint and falls back to the
+      // legacy customer-api, which is what lets that service be retired without
+      // a second frontend deploy.
+      const [uRes, companyResult] = await Promise.all([frontendFetch(usersUrl), fetchCompanies()]);
       if (!uRes.ok) throw new Error(`Nutzer laden fehlgeschlagen (HTTP ${uRes.status}).`);
       const uData = await uRes.json();
       setUsers(uData.users ?? []);
-      // The company list is best-effort — membership editing still works with a
-      // reachable list; a failure just shows ids instead of names.
-      const cData = cRes.ok ? await cRes.json() : { customers: [] };
-      setCompanies(cData.customers ?? []);
+      setCompanies(companyResult.companies);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setUsers([]);

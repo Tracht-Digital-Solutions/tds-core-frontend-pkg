@@ -225,6 +225,31 @@ moment the bundle lands.
 > `Expected ")" but found "{"` pointing at the comment's own closing line
 > rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
+## The company list is the last legacy dependency (`lib/companies.ts`)
+
+The user editor needs `{id, name}` per company for membership editing. That list
+used to come **only** from the legacy `tds-customer-api`
+(`GET /customer/admin/customers`) — the single live dependency keeping that
+service alive (`tds-core-frontend-api#8`).
+
+`fetchCompanies()` now asks the composed `tds-ext-customers` endpoint
+(`GET /admin/customers`, identical payload) first and falls back to the legacy
+one. **The fallback is deliberate, not indecision:** the composed frontend
+service cannot boot until `services/frontend/.env` + the `tds_frontend` DB exist,
+so a straight switch would have broken membership editing *today* to fix it
+*later*. With the fallback the call works on both sides of go-live and the legacy
+leg simply stops being reached — no second deploy needed to finish the migration.
+
+Two properties worth keeping when this is eventually simplified:
+
+- **It never throws.** The editor works without names (it shows ids), so a list
+  outage must not take user management down with it.
+- **A 200 carrying junk counts as a failure.** Taken at face value, a non-list
+  body renders an *empty* company list, which reads as "no customers exist"
+  rather than as a fault — strictly worse than a 500.
+
+Delete the legacy leg and `CUSTOMER_API_URL` once `tds-customer-api` is retired.
+
 ## Nav: base entries, groups and external links
 
 `baseNav` in `Layout.astro` is the shell's own nav, and each entry may name a
