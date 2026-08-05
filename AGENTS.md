@@ -7,7 +7,8 @@ that contract.
 
 **Base (here):** shell/chrome, the pre-paint auth gate (`/me`-confirmed presence
 hint — port from `tds-admin`'s `Layout.astro`, DON'T reinvent), nav renderer,
-**Dashboard widget host** + per-user layout, Wiki, user management, the settings
+**Dashboard widget host** + per-user layout, Wiki, user management, the **Module
+page** (`/module` — composed inventory + updates, see below), the settings
 framework (the wizard/list shell; individual sections come from extensions),
 i18n plumbing, the API fetch wrapper (401→`/me` backstop, cross-frontend SSO).
 The shell also mounts the shared `LiveChatCta` bubble (from tds-shared) passing
@@ -211,6 +212,50 @@ moment the bundle lands.
 > `Expected ")" but found "{"` pointing at the comment's own closing line
 > rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
+## Module page (`/module`) — inventory + updates
+
+`pages/module.astro` + `components/ModulesAdmin.tsx`. Shows every composed
+package with its installed version, its Composer (backend) version, the version
+the registry currently publishes, and the range the product pins — plus the
+buttons that put a newer version into service.
+
+**An "update" is a deploy, and there is no way around that.** Composition is a
+build step: the products are composed during `astro build` and the API is
+assembled into one bundle. So a module has TWO halves on TWO pipelines — the npm
+package a product build composes and the Composer package the gateway bundle
+assembles — which is why the table shows both versions. A green frontend version
+says nothing about the PHP side.
+
+**The per-row button is deliberately honest about its scope.** CI installs with
+`npm install --no-package-lock`, so ONE rebuild re-resolves EVERY caret range:
+pressing "Aktualisieren" on one row updates every module that has a newer version
+inside its pinned line. The confirmation says exactly that. And when the newest
+version falls *outside* the pin (a crossed 0.x minor), the row offers **no button
+at all** — it names the replacement range instead, because no rebuild will deliver
+it. `lib/moduleUpdates.ts` is where that verdict is computed; its 0.x caret rule
+(`^0.1.1` = `>=0.1.1 <0.2.0`) is the whole reason `update` and `repin` are two
+different answers.
+
+**Where the inventory comes from.** `coreFrontendBase()` reads the PRODUCT's
+`package.json` (pinned ranges) + its `node_modules` (installed versions) at build
+time and dynamically imports each extension for its German name and module id,
+then serves the result as `virtual:frontend-modules`. A static build has no other
+way to know what it was composed from. Every step degrades instead of failing —
+an unreadable root yields an empty list, an unimportable manifest falls back to a
+name derived from the package. **A product build must never break over an admin
+page's metadata.**
+
+**Automatic updates** are configured under *Einstellungen → Module & Deployment*
+and executed by the API (`AutoUpdater`), not here — the panel only renders the
+state and offers "Jetzt prüfen und aktualisieren". Two properties are worth
+remembering: it dispatches the **frontend** rebuild only (the backend target
+would ship every repo's unreleased `main`), and it acts only on in-range updates.
+See `tds-core-frontend-api`'s AGENTS.md for the scheduling model.
+
+The nav entry is admin-target-only; the route is injected into both products
+because there is one route list, and every `/admin/modules*` route is gated on
+`isAdmin` server-side regardless of who finds the URL.
+
 ## Virtual modules (renamed)
 
 The shell imports three build-time virtual modules from `frontend-contract`:
@@ -222,15 +267,29 @@ aliases, so **don't "fix" a stale `virtual:panel-*` reference by assuming it is
 broken** — it works; it is just not canonical. Use `virtual:frontend-*` in new
 code. The integration is `tds-core-frontend-base` (was `tds-core-panel-base`).
 
+A fourth one is this package's OWN: **`virtual:frontend-modules`**, served by
+`coreFrontendBase()` (not the contract) and consumed by `pages/module.astro`.
+
 The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 `.tds-panel/`). Build artifact — an old sibling directory may linger locally.
 
 ## Tests
 
 `npm run test:run` (vitest). DOM suites opt into jsdom via a
-`@vitest-environment` docblock; the rest run in node. 61 tests covering
-`lib/auth`, `lib/dashboardLayout`, `config/target` and `astro.ts` — the `.astro`
-shell and the islands stay on the product build + `astro check`.
+`@vitest-environment` docblock; the rest run in node. 123 tests covering
+`lib/auth`, `lib/dashboardLayout`, `lib/moduleUpdates`, `config/target`,
+`astro.ts` and `components/ModulesAdmin` — the `.astro` shell and the remaining
+islands stay on the product build + `astro check`.
+
+- **`moduleUpdates.test.ts` pins the 0.x caret rule numerically.** Getting it
+  wrong inverts a promise rather than breaking a render: the admin presses
+  "Aktualisieren", the pipeline runs green, and nothing changes. The PHP twin
+  (`VersionRange`) is asserted separately in the API repo — change one, change
+  the other.
+- **`ModulesAdmin.test.tsx` guards the promises, not the layout** — that a
+  repin row offers no deploy button, that the confirmation admits one rebuild
+  covers every in-range module, and that a failed dispatch carries its HTTP
+  status.
 
 - **`auth.test.ts` is the 401-backstop guard.** Injecting a blanket
   `redirectToLogin()` into `onUnauthorized` fails

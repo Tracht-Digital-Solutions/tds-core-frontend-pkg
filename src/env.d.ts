@@ -23,3 +23,12 @@ declare module "virtual:frontend-settings" {
   import type { SettingsPanel } from "@tracht-digital-solutions/tds-frontend-contract";
   export const settings: Array<SettingsPanel & { Component: unknown }>;
 }
+
+// This package's OWN virtual module (served by coreFrontendBase, not the
+// contract): the composed package inventory the Module page renders. Built from
+// the product's package.json + node_modules, because a static build has no
+// other way to know what it was composed from.
+declare module "virtual:frontend-modules" {
+  import type { ModuleEntry } from "./lib/moduleUpdates";
+  export const modules: ModuleEntry[];
+}

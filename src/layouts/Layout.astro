@@ -70,6 +70,14 @@ const baseNav: NavInput[] = [
   { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 3 },
 ];
 
+// Module lists what this build is composed of and starts the deploy pipelines.
+// Admin-product only: the route is injected into both targets (one route list),
+// but the customer portal must not advertise a production deploy — and the API
+// gates every /admin/modules route on `isAdmin` regardless of who finds the URL.
+if (FRONTEND_TARGET === "admin") {
+  baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 4 });
+}
+
 // Group the composed nav for rendering: extensions contribute { group, order,
 // icon }. Keys are normalised (trimmed + lowercased) so an extension writing
 // "Verwaltung" lands in the SAME section as the base shell instead of growing

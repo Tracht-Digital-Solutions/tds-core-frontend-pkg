@@ -3,7 +3,14 @@
 // by the enabled extensions (via virtual:frontend-settings), the same way the
 // Dashboard hosts widgets. Base-service settings (once ported) render above.
 import Layout from "../layouts/Layout.astro";
+import ModuleDeploySettings from "../components/ModuleDeploySettings.tsx";
 import { settings } from "virtual:frontend-settings";
+import { FRONTEND_TARGET } from "../config/target";
+
+// Base-service settings render above the extension sections. Module & Deployment
+// is admin-product-only: the customer portal is not the place to start a
+// production pipeline (the API gates it on `isAdmin` either way).
+const showDeploySettings = FRONTEND_TARGET === "admin";
 ---
 
 <Layout title="Einstellungen">
@@ -14,8 +21,18 @@ import { settings } from "virtual:frontend-settings";
         <h1 class="tds-page__title">Einstellungen</h1>
       </div>
     </div>
-    {settings.length === 0 ? <p class="tds-empty">Keine Einstellungen verfügbar.</p> : null}
+    {settings.length === 0 && !showDeploySettings ? (
+      <p class="tds-empty">Keine Einstellungen verfügbar.</p>
+    ) : null}
     <div class="settings-list flex flex-col gap-6">
+      {
+        showDeploySettings ? (
+          <section class="tds-settings-section" data-settings="modules">
+            <h2 class="tds-settings-section__title">Module &amp; Deployment</h2>
+            <ModuleDeploySettings client:load />
+          </section>
+        ) : null
+      }
       {
         settings.map((panel) => {
           const Panel = panel.Component as any;
