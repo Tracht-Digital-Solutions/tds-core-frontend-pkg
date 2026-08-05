@@ -123,7 +123,7 @@ describe("ModulesAdmin", () => {
     render(<ModulesAdmin modules={modules} />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const init = (fetchMock.mock.calls[0] as unknown[])[1] as RequestInit;
     const sent = JSON.parse(String(init.body)) as { inventory: { pkg: string; range: string }[] };
     expect(sent.inventory).toHaveLength(3);
     expect(sent.inventory[0]).toMatchObject({ range: "^0.1.1" });

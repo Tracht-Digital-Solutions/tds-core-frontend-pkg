@@ -203,8 +203,12 @@ describe("frontendFetch — the 401 backstop", () => {
     expect(hasAuthedHint()).toBe(true);
   });
 
-  it("redirects to the central login when /me also 401s", async () => {
-    fetchMock.mockResolvedValueOnce(response(401)).mockResolvedValueOnce(response(401));
+  it("redirects to the central login when /me and the refresh both fail", async () => {
+    // Three calls now: the API 401, the /me probe, and the remember-me refresh.
+    fetchMock
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401));
 
     const { setAuthed, frontendFetch } = await loadAuth();
     setAuthed();
@@ -216,7 +220,10 @@ describe("frontendFetch — the 401 backstop", () => {
   });
 
   it("preserves the current page as an encoded absolute next", async () => {
-    fetchMock.mockResolvedValueOnce(response(401)).mockResolvedValueOnce(response(401));
+    fetchMock
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401));
 
     const { frontendFetch } = await loadAuth();
     await frontendFetch(API);
@@ -228,7 +235,10 @@ describe("frontendFetch — the 401 backstop", () => {
   });
 
   it("clears the hint and hides the document when the session is really dead", async () => {
-    fetchMock.mockResolvedValueOnce(response(401)).mockResolvedValueOnce(response(401));
+    fetchMock
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401));
 
     const { setAuthed, frontendFetch, hasAuthedHint } = await loadAuth();
     setAuthed();
@@ -239,14 +249,52 @@ describe("frontendFetch — the 401 backstop", () => {
     expect(document.documentElement.classList.contains("auth-checking")).toBe(true);
   });
 
-  it("treats a 401 from /me itself as definitive without re-probing", async () => {
+  it("treats a 401 from /me itself as definitive without re-probing /me", async () => {
     fetchMock.mockResolvedValue(response(401));
 
     const { frontendFetch } = await loadAuth();
     await frontendFetch(`${AUTH}/me`);
 
-    // One call only: re-probing /me after /me 401s would be pointless.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Two calls: the /me that 401'd, then the one refresh attempt. Re-probing
+    // /me after /me 401s would be pointless — but a remembered device can still
+    // refresh its way back in, so that is tried exactly once.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(`${AUTH}/refresh`);
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("revives a remembered session instead of logging the user out", async () => {
+    // "30 Tage angemeldet bleiben" only works because of this exchange: the
+    // session JWT is short-lived on purpose, so an expired one must be traded
+    // for a fresh one rather than treated as a logout.
+    fetchMock
+      .mockResolvedValueOnce(response(401)) // the API call
+      .mockResolvedValueOnce(response(401)) // /me — session expired
+      .mockResolvedValueOnce(response(200)) // /refresh — remember cookie works
+      .mockResolvedValueOnce(response(200, { id: 1 })); // /me re-confirmed
+
+    const { frontendFetch, hasAuthedHint } = await loadAuth();
+    const res = await frontendFetch(API);
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    // The hint is re-seeded so the next paint skips the probe entirely.
+    expect(hasAuthedHint()).toBe(true);
+  });
+
+  it("does not accept a refresh that fails to re-confirm against /me", async () => {
+    // A 200 from /refresh whose cookie did not stick (blocked third-party
+    // cookies) must not read as a live session — that would leave the panel
+    // rendering for someone who is not signed in.
+    fetchMock
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(401))
+      .mockResolvedValueOnce(response(200)) // /refresh claims success
+      .mockResolvedValueOnce(response(401)); // …but /me still refuses
+
+    const { frontendFetch } = await loadAuth();
+    await frontendFetch(API);
+
     expect(replace).toHaveBeenCalledTimes(1);
   });
 

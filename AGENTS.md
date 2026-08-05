@@ -39,7 +39,20 @@ the gate must **probe `/me` when there is no
 local hint** and seed the hint on success — a missing hint after arriving from the
 login site is normal (localStorage is per-origin), so it must NOT redirect on a
 missing hint or it loops against the login (which sees the valid cookie and bounces
-straight back). Only a 401 from `/me` is a real logout.
+straight back). Only a 401 from `/me` **that a `/refresh` cannot revive** is a real
+logout — see below.
+
+**A `/me` 401 is not the end: try `/refresh` first.** "30 Tage angemeldet bleiben"
+(`tds-auth-api`) issues a rotating remember-me cookie and keeps the session JWT
+short-lived on purpose, because downstream services verify the JWT against the
+JWKS and never consult the auth database — a long JWT would be a long
+*non-revocable* credential. Staying signed in is therefore an exchange at
+`POST /refresh`, and **the panels are the only place that exchange happens**.
+Both the pre-paint gate in `Layout.astro` and `frontendFetch`'s backstop attempt
+it exactly once before redirecting; a remembered device would otherwise still be
+bounced to the login every hour. A 200 from `/refresh` is re-confirmed against
+`/me` rather than trusted, so a token that did not stick as a cookie cannot read
+as a live session.
 
 **Extensions (other repos):** time-tracker, blog-CMS, website-CMS, contact- and
 support-tickets, … They contribute pages/widgets/nav/settings/permissions/i18n

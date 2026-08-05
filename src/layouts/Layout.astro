@@ -294,17 +294,24 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               // the login site, which sees a valid cookie and bounces straight
               // back). Only a 401 from /me is a real logout.
               document.documentElement.classList.add("auth-checking");
+              function reveal() {
+                try {
+                  localStorage.setItem(hintKey, "1");
+                  localStorage.setItem(confirmedKey, String(Date.now() + 60000));
+                } catch (e) {}
+                document.documentElement.classList.remove("auth-checking");
+              }
               fetch(authApiUrl + "/me", { credentials: "include" }).then(function (res) {
-                if (res.ok) {
-                  try {
-                    localStorage.setItem(hintKey, "1");
-                    localStorage.setItem(confirmedKey, String(Date.now() + 60000));
-                  } catch (e) {}
-                  document.documentElement.classList.remove("auth-checking");
-                } else {
-                  clear();
-                  redirect();
-                }
+                if (res.ok) { reveal(); return; }
+                // Not logged in *yet*. A device with "angemeldet bleiben" holds a
+                // 30-day cookie that can mint a fresh session — the session JWT
+                // itself is deliberately short-lived, so without this exchange the
+                // remembered login would still bounce to the login page every hour.
+                return fetch(authApiUrl + "/refresh", { method: "POST", credentials: "include" })
+                  .then(function (r) {
+                    if (!r.ok) { clear(); redirect(); return; }
+                    reveal();
+                  });
               }).catch(function () {
                 document.documentElement.classList.remove("auth-checking");
               });
