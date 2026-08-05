@@ -54,6 +54,10 @@ interface NavInput {
   id?: string | undefined;
   icon?: string | undefined;
   order: number;
+  /** Nav section. Defaults to BASE_GROUP; set it to join an extension's group. */
+  group?: string | undefined;
+  /** Absolute link to another property — opens in a new tab (see below). */
+  external?: boolean | undefined;
 }
 
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
@@ -76,6 +80,24 @@ const baseNav: NavInput[] = [
 // gates every /admin/modules route on `isAdmin` regardless of who finds the URL.
 if (FRONTEND_TARGET === "admin") {
   baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 4 });
+
+  // The PUBLIC tools site. It joins the `tools` group so it sits beside the
+  // tools extension's own "Tools" entry (`/tools-verwaltung`, the catalog
+  // editor) — the label says "Website" precisely because those two are one
+  // click apart and easy to confuse.
+  //
+  // Opens in a NEW TAB, unlike the same-tab cross-property links on the public
+  // sites: someone in the panel is mid-task, and replacing their working
+  // context with a public catalog loses their place.
+  baseNav.push({
+    href: "https://tools.tracht-digital.de",
+    label: "Tools-Website",
+    id: "tools-site",
+    icon: "external-link",
+    group: "tools",
+    order: 90,
+    external: true,
+  });
 }
 
 // Group the composed nav for rendering: extensions contribute { group, order,
@@ -85,7 +107,14 @@ if (FRONTEND_TARGET === "admin") {
 // the base group also fixes the section order: Verwaltung stays first, then
 // extension groups in first-appearance order.
 const groups = new Map<string, NavInput[]>();
-groups.set(BASE_GROUP, [...baseNav]);
+// Seed with the base group's own entries FIRST — that is what pins Verwaltung
+// as the leading section. Base entries naming another group are held back and
+// merged after the extensions, so joining a group never reorders the sections.
+groups.set(
+  BASE_GROUP,
+  baseNav.filter((item) => item.group === undefined),
+);
+const adoptedBaseNav = baseNav.filter((item) => item.group !== undefined);
 for (const item of registry.nav) {
   const key = normaliseGroup(item.group);
   const bucket = groups.get(key) ?? [];
@@ -99,6 +128,15 @@ for (const item of registry.nav) {
     order: item.order ?? 100,
   });
   groups.set(key, bucket);
+}
+
+// Base entries that named an extension's group join it now. A group the
+// extensions never created is skipped rather than invented: a section heading
+// with one external link under it and nothing else reads as a bug.
+for (const item of adoptedBaseNav) {
+  const key = normaliseGroup(item.group);
+  const bucket = groups.get(key);
+  if (bucket) bucket.push(item);
 }
 
 // Active-nav resolution. `.nav-item--active` (tinted fill + 2px indicator bar)
@@ -165,7 +203,10 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
       label: item.label,
       id: item.id,
       icon: item.icon,
+      // An absolute URL can never match a pathname, so this is always false for
+      // an external entry — stated rather than special-cased.
       active: isActive(item.href),
+      external: item.external,
     })),
 }));
 ---

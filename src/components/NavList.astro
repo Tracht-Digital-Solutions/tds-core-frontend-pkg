@@ -24,6 +24,8 @@ export interface NavItem {
   /** Icon key from the extension's manifest (`NavEntry.icon`). */
   icon?: string | undefined;
   active: boolean;
+  /** Link to another property — opens in a new tab, with the usual rel guard. */
+  external?: boolean | undefined;
 }
 
 export interface NavSection {
@@ -53,8 +55,13 @@ const { sections } = Astro.props;
             class:list={["nav-item", "px-3 py-2", item.active && "nav-item--active"]}
             href={item.href}
             data-nav={item.id}
-            data-tip={item.label}
+            data-tip={item.external ? `${item.label} (neuer Tab)` : item.label}
             aria-current={item.active ? "page" : undefined}
+            target={item.external ? "_blank" : undefined}
+            {/* `noopener` is the security half (the opened page cannot reach
+                back through window.opener); `noreferrer` keeps it from learning
+                which panel page the visit came from. */}
+            rel={item.external ? "noopener noreferrer" : undefined}
           >
             <span class="nav-item__icon">
               <Icon name={item.icon} />

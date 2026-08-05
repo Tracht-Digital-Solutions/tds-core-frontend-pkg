@@ -225,6 +225,28 @@ moment the bundle lands.
 > `Expected ")" but found "{"` pointing at the comment's own closing line
 > rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
+## Nav: base entries, groups and external links
+
+`baseNav` in `Layout.astro` is the shell's own nav, and each entry may name a
+`group` to join an extension's section instead of the base one. Two rules are
+load-bearing:
+
+- **Group order is seeded by the base group, then by extension first-appearance.**
+  Base entries that name another group are therefore merged *after* the extension
+  loop — bucketing them up front would let a base entry create (and so reorder)
+  a section.
+- **A base entry never invents a group.** If the extensions did not create it,
+  the entry is dropped: a section heading with one link under it and nothing else
+  reads as a bug, not as a feature.
+
+`external: true` marks a link to another property. It renders `target="_blank"`
+plus `rel="noopener noreferrer"` and appends "(neuer Tab)" to the tooltip. The
+public tools site (`tools.tracht-digital.de`) is the current example, joining the
+`tools` group beside the tools extension's own catalog editor — hence the label
+"Tools-Website", because those two sit one click apart. Note this differs from
+the public sites, which link siblings in the SAME tab: someone in the panel is
+mid-task, and replacing their working context loses their place.
+
 ## Module page (`/module`) — inventory + updates
 
 `pages/module.astro` + `components/ModulesAdmin.tsx`. Shows every composed

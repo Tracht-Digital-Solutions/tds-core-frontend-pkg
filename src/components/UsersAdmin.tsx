@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type SubmitEvent } from "react";
 import {
   PORTAL_PERMISSIONS,
   PORTAL_PERMISSION_LABELS,
@@ -322,7 +322,7 @@ function UserForm({
     setMemberships(memberships.map((m, i) => (i === index ? { ...m, ...patch } : m)));
   const removeMembership = (index: number) => setMemberships(memberships.filter((_, i) => i !== index));
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     onSubmit({
       email: email.trim(),
