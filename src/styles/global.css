@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss/index.css";
 
 /* Shared design library — this host is the `panel` surface. Both products
    (tds-admin-frontend and tds-customer-frontend) are pure config over this

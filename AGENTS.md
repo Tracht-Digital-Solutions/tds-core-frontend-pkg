@@ -250,6 +250,32 @@ Two properties worth keeping when this is eventually simplified:
 
 Delete the legacy leg and `CUSTOMER_API_URL` once `tds-customer-api` is retired.
 
+## Astro 7 / Vite 8 — the one thing that had to change
+
+The host and both products run **Astro 7** (since 2026-08-06; Astro 6.4.8 was the
+last 6.x and carried five unpatched advisories). Almost nothing broke — no
+experimental config, no content collections, no remark/rehype, no `src/fetch.ts`.
+
+One thing did: **`src/styles/global.css` must import `tailwindcss/index.css`, not
+the bare `tailwindcss`.** Under Vite 8 the built-in postcss-import step resolves
+that specifier *before* `@tailwindcss/postcss` can expand it, and a bare package
+name is not a file — the build dies with
+`[postcss] ENOENT: … open '<root>/tailwindcss'`. Astro 6 / Vite 7 accepted the
+bare form.
+
+**This file is the products' stylesheet.** They have no `global.css` of their own;
+they consume this one out of `node_modules`. So a product cannot move to Astro 7
+until this package is *published* with the fix — release the host first, then the
+products. (Verified the hard way: `tds-admin-frontend` fails with exactly that
+ENOENT while resolving an older host.)
+
+The repo-wide "never `@tailwindcss/vite`" rule **still stands**, but its original
+justification is gone: it existed because Vite 7 + rolldown broke the plugin's
+resolver (withastro/astro#16542), and the plugin builds fine under Vite 8. It was
+re-tested on 2026-08-06 and kept anyway — both routes work, and staying on one
+setup keeps the posture tests meaningful. Don't reintroduce it as a "fix";
+nothing is broken.
+
 ## Nav: base entries, groups and external links
 
 `baseNav` in `Layout.astro` is the shell's own nav, and each entry may name a
