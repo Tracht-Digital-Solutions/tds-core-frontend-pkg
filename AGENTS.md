@@ -174,6 +174,34 @@ in the `/me` dashboard-layout record), suppresses the width transition when
 restoring on load, labels the *action* rather than the state, and no-ops both
 when the rail is absent (the `bare` layout) and when storage throws.
 
+**The drawer traps focus, returns it, and closes on navigation.** It used to
+do none of the three: opening it left focus on the page behind, Tab walked
+straight out into content the backdrop covers, and closing dropped focus to the
+top of the document. It also stayed visibly open for the whole of a navigation,
+because every nav entry is a full page load in an MPA and nothing closed it.
+Two details worth keeping: the focusable list is recomputed per keystroke
+rather than cached (the `ThemeToggle` inside the drawer hydrates late, so a
+list taken at load time is already wrong), and **the Escape handler returns
+early unless the drawer is open** — unconditionally, it also fired for an
+Escape inside a `<dialog>` and cleared `body.style.overflow`, releasing a
+scroll lock that belonged to someone else.
+
+**Dashboard reorder: the buttons are the control, the drag is a shortcut.**
+HTML5 drag-and-drop does not fire on a touch screen and was never reachable by
+keyboard, so on a phone edit mode offered the visibility checkboxes and no way
+to reorder at all. `[data-widget-move]` up/down buttons call the same
+`insertBefore` the drag does, restore focus to the pressed button (re-inserting
+the node drops it to the body) and report the new position through a
+single polite live region — not a toast, which would stack one visible
+notification per press. The reorder counts hidden slots as positions, because
+edit mode still renders them; skipping them would make a press look like a
+no-op. The drag stays for the mouse, where it is the quicker gesture.
+
+> The whole `.widget-slot__controls` block used to carry `aria-hidden="true"`
+> while containing a **focusable checkbox** — an ARIA violation that made
+> widget visibility unoperable with a screen reader on every device, not just
+> a phone. Only the decorative ⠿ handle is hidden now.
+
 **The rail and the drawer render the same two components — keep it that way.**
 `baseNav` + `navGroups` are folded into one resolved `navSections` model in the
 frontmatter, and both places render `<NavList sections={navSections} />` and

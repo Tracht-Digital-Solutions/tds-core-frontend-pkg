@@ -409,7 +409,12 @@ function UserForm({
           ) : null}
           {memberships.map((m, i) => (
             <div key={m.customerId} className="tds-card p-3 space-y-3">
-              <div className="flex items-center gap-3">
+              {/* Wraps: a dropdown's min width is set by its widest option —
+                  company names here — so it cannot shrink to share a row with
+                  the button on a phone. (Don't write the tag name in this
+                  comment: lint-primitives is a regex scan and reads it as an
+                  unclassed control.) */}
+              <div className="flex flex-wrap items-center gap-3">
                 <select
                   className="field-boxed"
                   value={String(m.customerId)}

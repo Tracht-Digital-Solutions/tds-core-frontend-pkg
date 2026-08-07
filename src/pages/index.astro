@@ -37,8 +37,26 @@ import { widgets } from "virtual:frontend-widgets";
             data-label={title}
             style={`--tds-widget-hue: ${hueForKey(widget.id)}`}
           >
-            <div class="widget-slot__controls" aria-hidden="true">
-              <span class="widget-slot__handle" title="Ziehen zum Sortieren">⠿</span>
+            <div class="widget-slot__controls">
+              <span class="widget-slot__handle" title="Ziehen zum Sortieren" aria-hidden="true">
+                ⠿
+              </span>
+              <button
+                type="button"
+                class="btn btn-ghost widget-slot__move"
+                data-widget-move="up"
+                aria-label={`${title} nach vorne schieben`}
+              >
+                <Icon name="chevron-up" size={16} />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost widget-slot__move"
+                data-widget-move="down"
+                aria-label={`${title} nach hinten schieben`}
+              >
+                <Icon name="chevron-down" size={16} />
+              </button>
               <label class="widget-slot__toggle">
                 <input type="checkbox" data-widget-visible checked />
                 <span>{title}</span>
@@ -72,6 +90,12 @@ import { widgets } from "virtual:frontend-widgets";
     .dashboard-grid.is-editing .widget-slot.is-hidden { display: block; }
     .widget-slot__handle { cursor: grab; user-select: none; font-size: 1.1rem; line-height: 1; }
     .widget-slot__toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+    /* The drag handle is the mouse affordance and nothing else — HTML5 drag
+       and drop does not exist on a touch screen, and it is unreachable by
+       keyboard either way. These two buttons are the real control; the drag
+       stays because it is the faster gesture where it works. */
+    .widget-slot__move { padding: 0.25rem 0.4rem; }
+    @media (pointer: coarse) { .widget-slot__handle { display: none; } }
     /* The hue icon is absolutely positioned to the SLOT's top-right (the
        .tds-widget markup belongs to each extension and is not touched), so
        once edit mode reveals the controls row above the widget the icon would

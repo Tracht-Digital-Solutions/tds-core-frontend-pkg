@@ -158,7 +158,10 @@ export default function ModuleDeploySettings() {
         />
       </label>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Two up from `sm` only. Unprefixed, these four fields sat at ~150px
+          each on a phone, holding placeholders like the 42-character repo
+          slug below. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block">
           <span className="text-sm">Frontend-Repository</span>
           <input

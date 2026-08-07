@@ -188,4 +188,59 @@ export function initDashboardLayout(): void {
     }
     return closest?.el ?? null;
   };
+
+  // ---- move reorder (the control that works everywhere) --------------------
+  //
+  // HTML5 drag and drop does not fire on a touch screen at all, and it was
+  // never reachable by keyboard, so on a phone the edit mode offered the
+  // visibility checkboxes and no way to reorder whatsoever. These buttons are
+  // the actual control; the drag above stays for the mouse, where it is the
+  // quicker gesture.
+  //
+  // Reordering moves the slot among ALL slots, hidden ones included: hidden
+  // slots are still rendered in edit mode (`.is-hidden` only dims them there),
+  // so skipping them would make a press appear to do nothing.
+  const move = (slot: HTMLElement, dir: "up" | "down"): void => {
+    const all = slots();
+    const i = all.indexOf(slot);
+    const j = dir === "up" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= all.length) return;
+    if (dir === "up") grid.insertBefore(slot, all[j]!);
+    else grid.insertBefore(all[j]!, slot);
+  };
+
+  // A single polite live region, created on first use. Announcing through the
+  // toast bus instead would stack a visible notification per press — this is
+  // feedback for the people who cannot see the tile move, and no one else.
+  // Declared as a const arrow rather than a hoisted `function` so TypeScript
+  // keeps the non-null narrowing of `grid` from the guard at the top.
+  let liveRegion: HTMLElement | null = null;
+  const announce = (message: string): void => {
+    if (!liveRegion) {
+      liveRegion = document.createElement("p");
+      liveRegion.setAttribute("aria-live", "polite");
+      // Hidden inline rather than via a `.sr-only` utility: this string lives
+      // in a .ts file, and whether Tailwind scans it into the bundle depends
+      // on each product's `@source` config. A class that silently fails to
+      // generate here would leave the text visible on the page.
+      liveRegion.style.cssText =
+        "position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0";
+      grid.parentElement?.appendChild(liveRegion);
+    }
+    liveRegion.textContent = message;
+  };
+
+  grid.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-widget-move]");
+    if (!btn || !grid.classList.contains("is-editing")) return;
+    const slot = btn.closest<HTMLElement>(".widget-slot");
+    if (!slot) return;
+    move(slot, btn.dataset.widgetMove === "up" ? "up" : "down");
+    // The button moved with its slot, so it is still the right thing to focus —
+    // but re-inserting the node drops focus to the body, and a keyboard user
+    // pressing "up" three times would otherwise have to re-find it each time.
+    btn.focus();
+    const position = slots().indexOf(slot) + 1;
+    announce(`${slot.dataset.label ?? "Widget"}: Position ${position} von ${slots().length}`);
+  });
 }

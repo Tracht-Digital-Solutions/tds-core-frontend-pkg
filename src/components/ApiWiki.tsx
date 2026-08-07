@@ -80,9 +80,14 @@ export default function ApiWiki() {
           <h2 className="text-lg font-semibold mb-2">/{group}</h2>
           <ul className="api-wiki__routes flex flex-col gap-1">
             {routes.map((r, i) => (
-              <li key={`${r.method}-${r.pattern}-${i}`} className="flex items-center gap-2">
+              // `min-w-0` + `break-all`: a route pattern is one unbroken token
+              // (`/admin/modules/auto-update`), and a flex item defaults to
+              // min-content width, so without both the row ran past the
+              // viewport — where `body { overflow-x: hidden }` cut it off
+              // rather than letting it scroll.
+              <li key={`${r.method}-${r.pattern}-${i}`} className="flex items-center gap-2 min-w-0">
                 <span className={`chip ${methodChip(r.method)}`}>{r.method}</span>
-                <code>{r.pattern}</code>
+                <code className="break-all">{r.pattern}</code>
               </li>
             ))}
           </ul>

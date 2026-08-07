@@ -39,8 +39,10 @@ function renderGrid(ids: string[]): void {
       ${ids
         .map(
           (id) => `
-        <section class="widget-slot" data-widget="${id}">
+        <section class="widget-slot" data-widget="${id}" data-label="${id}">
           <span class="widget-slot__handle"></span>
+          <button data-widget-move="up"></button>
+          <button data-widget-move="down"></button>
           <input type="checkbox" data-widget-visible checked />
         </section>`,
         )
@@ -359,5 +361,116 @@ describe("edit mode", () => {
 
     await vi.waitFor(() => expect(btn("edit").hidden).toBe(false));
     expect(toasts).toEqual([]);
+  });
+});
+
+describe("reordering by button", () => {
+  // The drag path is HTML5 drag-and-drop: it does not fire on a touch screen
+  // and was never reachable by keyboard, so on a phone edit mode offered the
+  // visibility checkboxes and no way to reorder at all. These buttons are the
+  // control that works everywhere, and jsdom cannot exercise the drag anyway.
+  const move = (widget: string, dir: "up" | "down") =>
+    grid()
+      .querySelector<HTMLButtonElement>(`[data-widget="${widget}"] [data-widget-move="${dir}"]`)!
+      .click();
+
+  it("moves a widget towards the front", async () => {
+    renderGrid(["a", "b", "c"]);
+    await loadWith([]);
+    btn("edit").click();
+
+    move("c", "up");
+
+    expect(order()).toEqual(["a", "c", "b"]);
+  });
+
+  it("moves a widget towards the back", async () => {
+    renderGrid(["a", "b", "c"]);
+    await loadWith([]);
+    btn("edit").click();
+
+    move("a", "down");
+
+    expect(order()).toEqual(["b", "a", "c"]);
+  });
+
+  it("does nothing at either end", async () => {
+    renderGrid(["a", "b"]);
+    await loadWith([]);
+    btn("edit").click();
+
+    move("a", "up");
+    move("b", "down");
+
+    expect(order()).toEqual(["a", "b"]);
+  });
+
+  it("ignores presses outside edit mode", async () => {
+    // The controls row is display:none there, but a press can still arrive
+    // from an assistive technology or a stray script.
+    renderGrid(["a", "b"]);
+    await loadWith([]);
+
+    move("b", "up");
+
+    expect(order()).toEqual(["a", "b"]);
+  });
+
+  it("counts hidden widgets as positions", async () => {
+    // Hidden slots are still rendered while editing (only dimmed), so skipping
+    // them would make a press look like it did nothing.
+    renderGrid(["a", "b", "c"]);
+    await loadWith([
+      { widget_id: "a", visible: true, sort: 0 },
+      { widget_id: "b", visible: false, sort: 1 },
+      { widget_id: "c", visible: true, sort: 2 },
+    ]);
+    btn("edit").click();
+
+    move("c", "up");
+
+    expect(order()).toEqual(["a", "c", "b"]);
+  });
+
+  it("keeps focus on the button that was pressed", async () => {
+    // Re-inserting the node drops focus to the body; without restoring it,
+    // pressing "up" repeatedly means re-finding the button every time.
+    renderGrid(["a", "b", "c"]);
+    await loadWith([]);
+    btn("edit").click();
+
+    const up = grid().querySelector<HTMLButtonElement>(
+      '[data-widget="c"] [data-widget-move="up"]',
+    )!;
+    up.click();
+
+    expect(document.activeElement).toBe(up);
+  });
+
+  it("announces the new position politely, without raising a toast", async () => {
+    renderGrid(["a", "b", "c"]);
+    await loadWith([]);
+    btn("edit").click();
+
+    move("c", "up");
+
+    const live = document.querySelector('[aria-live="polite"]');
+    expect(live?.textContent).toContain("Position 2 von 3");
+    // A toast per press would bury the save outcome under a stack of them.
+    expect(toasts).toEqual([]);
+  });
+
+  it("persists the button-made order on save", async () => {
+    renderGrid(["a", "b", "c"]);
+    await loadWith([]);
+    btn("edit").click();
+    move("c", "up");
+
+    frontendFetch.mockResolvedValueOnce({ ok: true, status: 200 });
+    btn("save").click();
+
+    await vi.waitFor(() => expect(frontendFetch).toHaveBeenCalledTimes(2));
+    const layout = JSON.parse(frontendFetch.mock.calls[1]![1].body).layout as Row[];
+    expect(layout.map((r) => r.widget_id)).toEqual(["a", "c", "b"]);
   });
 });

@@ -431,7 +431,7 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
             </div>
           </div>
 
-          <main id="main" class="panel-main min-w-0 flex-1 p-6">
+          <main id="main" class="panel-main min-w-0 flex-1 p-4 sm:p-6">
             <div class="mx-auto w-full max-w-[90rem]">
               <slot />
             </div>
@@ -442,21 +442,77 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
             var drawer = document.getElementById("nav-drawer");
             var trigger = document.getElementById("nav-drawer-open");
             if (!drawer || !trigger) return;
+            var panel = drawer.querySelector(".nav-drawer-panel");
+
+            var isOpen = function () {
+              return drawer.getAttribute("data-open") === "true";
+            };
+            // Tab order inside the panel. Recomputed per use rather than
+            // cached: the nav is server-rendered but the theme toggle inside
+            // it hydrates late, so a list taken at load time is wrong.
+            var focusables = function () {
+              return Array.prototype.filter.call(
+                panel.querySelectorAll("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])"),
+                function (el) { return el.offsetParent !== null; }
+              );
+            };
+
             function setOpen(open) {
+              if (open === isOpen()) return;
               drawer.setAttribute("data-open", open ? "true" : "false");
               trigger.setAttribute("aria-expanded", open ? "true" : "false");
               document.body.style.overflow = open ? "hidden" : "";
+              if (open) {
+                var first = focusables()[0];
+                if (first) first.focus();
+              } else {
+                // Back where they came from. Without this, closing drops focus
+                // to the top of the document and a keyboard user has to tab
+                // through the whole page to get anywhere.
+                trigger.focus();
+              }
             }
+
             trigger.addEventListener("click", function () {
-              setOpen(drawer.getAttribute("data-open") !== "true");
+              setOpen(!isOpen());
             });
             drawer.querySelectorAll("[data-nav-drawer-close]").forEach(function (el) {
               el.addEventListener("click", function () {
                 setOpen(false);
               });
             });
+            // Every nav entry is a full page load (this is an MPA), so without
+            // this the drawer stays visibly open across the whole navigation.
+            panel.addEventListener("click", function (e) {
+              if (e.target.closest("a[href]")) setOpen(false);
+            });
+
             document.addEventListener("keydown", function (e) {
-              if (e.key === "Escape") setOpen(false);
+              // Guarded on the open state. Unconditional, this also fired for
+              // an Escape inside a <dialog> — and cleared `body.overflow`,
+              // releasing a scroll lock that belonged to something else.
+              if (!isOpen()) return;
+              if (e.key === "Escape") {
+                setOpen(false);
+                return;
+              }
+              if (e.key !== "Tab") return;
+              // The drawer covers the page but leaves the page focusable, so
+              // Tab would walk out of it into content the user cannot see.
+              var items = focusables();
+              if (!items.length) return;
+              var first = items[0];
+              var last = items[items.length - 1];
+              if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+              } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+              } else if (!panel.contains(document.activeElement)) {
+                e.preventDefault();
+                first.focus();
+              }
             });
           })();
         </script>

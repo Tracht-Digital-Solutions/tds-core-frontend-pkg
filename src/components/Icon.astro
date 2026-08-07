@@ -77,6 +77,11 @@ const PATHS: Record<string, string> = {
   // --- Shell chrome ---
   "chevrons-left": '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>',
   "chevrons-right": '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
+  // Dashboard reorder. An unknown key falls back to `square`, which lines up
+  // in the grid rather than collapsing it — so a missing glyph here is a pair
+  // of blank boxes, not a broken layout, and nothing would flag it.
+  "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+  "chevron-down": '<path d="m6 9 6 6 6-6"/>',
 };
 
 const body = (name && PATHS[name]) || PATHS.square;

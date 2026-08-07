@@ -313,9 +313,17 @@ export default function ModulesAdmin({ modules }: Props) {
             <tr>
               <th scope="col">Modul</th>
               <th scope="col">Installiert</th>
-              <th scope="col">Backend</th>
+              {/* Backend + Pin are diagnostics. tds-shared makes the table
+                  scroll on a phone, but seven columns still means the two
+                  that matter — Status and Aktion — start off-screen. Hiding
+                  the diagnostics brings them into the first screenful. */}
+              <th scope="col" className="hidden md:table-cell">
+                Backend
+              </th>
               <th scope="col">Verfügbar</th>
-              <th scope="col">Pin</th>
+              <th scope="col" className="hidden md:table-cell">
+                Pin
+              </th>
               <th scope="col">Status</th>
               <th scope="col">Aktion</th>
             </tr>
@@ -331,9 +339,9 @@ export default function ModulesAdmin({ modules }: Props) {
                     <span className="marginalia block">{entry.pkg}</span>
                   </th>
                   <td>{entry.installed || "—"}</td>
-                  <td>{be ?? "—"}</td>
+                  <td className="hidden md:table-cell">{be ?? "—"}</td>
                   <td>{published ?? "—"}</td>
-                  <td>{entry.range || "—"}</td>
+                  <td className="hidden md:table-cell">{entry.range || "—"}</td>
                   <td>
                     <span className={`chip ${meta.chip}`}>{meta.label}</span>
                   </td>
