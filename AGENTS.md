@@ -390,10 +390,16 @@ The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 ## Tests
 
 `npm run test:run` (vitest). DOM suites opt into jsdom via a
-`@vitest-environment` docblock; the rest run in node. 123 tests covering
-`lib/auth`, `lib/dashboardLayout`, `lib/moduleUpdates`, `config/target`,
-`astro.ts` and `components/ModulesAdmin` — the `.astro` shell and the remaining
-islands stay on the product build + `astro check`.
+`@vitest-environment` docblock; the rest run in node. 159 tests covering
+`lib/auth`, `lib/dashboardLayout`, `lib/notificationFeed`, `lib/moduleUpdates`,
+`config/target`, `astro.ts` and `components/ModulesAdmin` — the `.astro` shell
+and the remaining islands stay on the product build + `astro check`.
+
+- **`notificationFeed.test.ts` is mostly about restraint, not features.** The
+  poller runs on every page, forever, in every open tab, so the assertions that
+  matter are the negative ones: a hidden tab does not poll, a 401/403 stops it
+  instead of retrying, a transport failure never raises a toast, and the cursor
+  advances (or the same event is announced forever).
 
 - **`moduleUpdates.test.ts` pins the 0.x caret rule numerically.** Getting it
   wrong inverts a promise rather than breaking a render: the admin presses
@@ -479,6 +485,51 @@ the frontend service is undeployed a toast there would fire on every page load
 and teach everyone to ignore the red box that matters. `dashboardLayout.test.ts`
 pins all four branches by listening for `tds:toast` on `window` — no ToastHost
 in the fixture, so the DOM fixture stayed untouched.
+
+## Live notifications (`lib/notificationFeed.ts`)
+
+The shell polls **one** endpoint — `GET /me/notifications` — on every non-`bare`
+page and raises a toast per event, plus a `tds:notification` window event so an
+open list can refresh itself. Started from the same `<script>` block as
+`initSidebarCollapse`.
+
+**Why it looks like this**
+
+- **Polling, because the host cannot do anything else.** PHP-FPM behind Plesk:
+  no long-lived workers, no `proc_open`, so no SSE and no WebSockets.
+- **One poller for every module.** Modules contribute events on the BACKEND (the
+  contract's `NotificationSource`), so a new module does not add a timer here.
+  A poller per extension island would be thirteen intervals on every page.
+- **The cursor is opaque and lives in `sessionStorage`, per target.** Not in
+  memory: the panel is a multi-page static site, so every navigation would be a
+  "first call" — which suppresses the backlog and would therefore silently drop
+  whatever arrived while the page was changing. Not `localStorage`: two tabs
+  sharing one cursor would race to consume events and each would see only some.
+- **First call announces nothing.** The backend returns items only once it has
+  seen a cursor, so opening a tab is never a burst of toasts about yesterday.
+- **401/403 STOPS the poller.** `frontendFetch` has already probed `/me` and
+  tried a refresh by then; carrying on is a `/me` storm every 30 s for as long
+  as the tab is open, and a principal does not gain rights mid-session.
+- **A transport failure is NEVER toasted** (exponential backoff to 5 min
+  instead) — same reasoning as the dashboard-layout load path above: it runs on
+  every page, and a red box about the notifier teaches people to ignore the red
+  box that matters.
+- **Hidden tabs do not poll**, and poll immediately on becoming visible.
+
+**The 401 backstop now covers extensions too.** The same script registers
+`onUnauthorized` with tds-shared's `setUnauthorizedHandler`. Extension islands
+call the API through `apiFetch`, which cannot reach into the host, so until this
+existed every extension 401 skipped the confirm-against-`/me`-then-refresh rule
+entirely.
+
+**`<meta name="tds-api-base">`** in `Layout.astro`'s `<head>` is what tells
+`apiFetch` where the API is. It cannot be `import.meta.env`: the extensions ship
+as built packages inside a consumer's `node_modules`, and a `PUBLIC_*`
+substitution is not something a published package may rely on. Without the tag a
+relative call resolves against the product's own static host, whose SPA fallback
+answers **200 + HTML** — `res.ok` true, `json()` throwing, the catch rendering a
+calm empty state. That is precisely how the contact inbox reported "Keine
+Anfragen." while the rows sat in the database.
 
 ## Wiki (`/wiki`) — FAQ + API reference
 

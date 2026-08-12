@@ -132,8 +132,13 @@ async function tryRefresh(): Promise<boolean> {
  * A 401 is verified against /me before it's treated as a dead session, so a
  * single scoped-permission 401 never loops the user to login. Only a /me that
  * ALSO 401s — and a refresh that cannot revive it either — is definitive.
+ *
+ * Exported so the shell can hand it to tds-shared's `setUnauthorizedHandler`:
+ * extension islands call the API through `apiFetch`, which has no way to reach
+ * into the host, so without that registration every extension 401 skipped this
+ * backstop entirely.
  */
-async function onUnauthorized(requestUrl: string): Promise<void> {
+export async function onUnauthorized(requestUrl: string): Promise<void> {
   // A 401 straight from /me is definitive for the SESSION, but not yet for the
   // login: a remembered device can still refresh its way back in.
   if (requestUrl.startsWith(`${AUTH_API_URL}/me`)) {

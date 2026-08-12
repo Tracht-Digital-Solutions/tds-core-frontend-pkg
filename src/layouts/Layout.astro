@@ -23,6 +23,7 @@ import { registry } from "virtual:frontend-registry";
 // BRAND_SUFFIX is deliberately NOT imported here — it is consumed only by
 // <BrandWordmark />, which keeps the shell's single per-target value in one place.
 import { HINT_PREFIX, LOGIN_URL, FRONTEND_TARGET } from "../config/target";
+import { API_BASE } from "../lib/auth";
 
 const hintKey = `${HINT_PREFIX}_authed`;
 const expKey = `${HINT_PREFIX}_authed_exp`;
@@ -230,6 +231,17 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="robots" content="noindex,nofollow" />
+
+    {/* Where the composed API lives, for code that was built long before this
+        product was. Every extension island calls the backend through
+        tds-shared's `apiFetch`, which reads this — it cannot use
+        `import.meta.env`, because it ships as a built package inside a
+        consumer's node_modules and a PUBLIC_* substitution is not something a
+        published package may rely on. Without it a relative call resolves
+        against THIS static host, whose SPA fallback answers 200 + HTML: the
+        island sees res.ok, json() throws, and the catch renders a calm empty
+        state. That is what made the contact inbox report "Keine Anfragen." */}
+    <meta name="tds-api-base" content={API_BASE} />
 
     {/* No-flash theme bootstrap — shared with the landingpage and the blog
         (tds-shared/astro). Must stay `is:inline` and must stay BEFORE the
@@ -519,6 +531,27 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
         <script>
           import { initSidebarCollapse } from "../lib/sidebarCollapse";
           initSidebarCollapse();
+        </script>
+        {/* NB no `define:vars` here — it implies `is:inline`, and an inline
+            script is not bundled, so these imports would reach the browser as
+            bare specifiers. The target is imported from the same module the
+            frontmatter uses instead. */}
+        <script>
+          import { setUnauthorizedHandler } from "@tracht-digital-solutions/tds-shared/api";
+          import { onUnauthorized } from "../lib/auth";
+          import { initNotificationFeed } from "../lib/notificationFeed";
+          import { FRONTEND_TARGET } from "../config/target";
+
+          // Extension islands call the API through tds-shared's `apiFetch`,
+          // which cannot reach into the host. Registering here is what finally
+          // gives THEIR 401s the same backstop the host's own calls always had:
+          // confirm against /me, try a refresh, and only then treat the session
+          // as dead.
+          setUnauthorizedHandler(onUnauthorized);
+
+          // One poller for every composed module. Not in `bare` mode: the
+          // login/gate page has no session to poll with.
+          initNotificationFeed({ target: FRONTEND_TARGET });
         </script>
       )
     }
