@@ -78,6 +78,18 @@ describe("hueForKey", () => {
     expect(new Set(hues).size).toBe(groups.length);
   });
 
+  it("keeps Tools off the red end of the wheel", () => {
+    // `verwaltung` renders `--tds-panel-accent`, which for the ADMIN product
+    // is `--color-management` — the brand burgundy, since tds-shared 0.20.0.
+    // Tools was on `--color-cat-rose`, and the two resolved to a ΔE of ~12:
+    // distinct token names, one indistinguishable red in the actual rail.
+    // The distinctness test above cannot catch that (it compares NAMES), and
+    // tds-shared's ΔE test cannot see this file, so the mapping is pinned
+    // here. If Tools ever needs rose back, the admin accent has to move.
+    expect(hueForKey("tools")).not.toBe("var(--color-cat-rose)");
+    expect(hueForKey("tools")).not.toBe(hueForKey("verwaltung"));
+  });
+
   it("spreads unmapped keys across more than one categorical hue", () => {
     const hues = new Set(
       ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta"].map((k) =>

@@ -78,12 +78,18 @@ billing, tools, messages, projects, documents); **customer** composes 5
 `FRONTEND_TARGET` only for *functional* values (`HINT_PREFIX`, `LOGIN_URL`), the
 wordmark suffix text (`BRAND_SUFFIX` = "Panel"/"Portal"), and — since 0.13.0 —
 the **accent hue**, which `Layout.astro` emits as `<html data-frontend>` and
-tds-shared's `surfaces/panel.css` turns into a colour: management reads the
-brand navy, the customer portal reads teal, so a user with both open knows
-which surface they are on.
+tds-shared's `surfaces/panel.css` turns into a colour: **the management
+frontend reads the brand burgundy, the customer portal reads the brand navy**,
+so a user with both open knows which surface they are on — and, more to the
+point, knows when they are holding management rights.
+
+> **Reversed in tds-shared 0.20.0 / host 0.18.1.** It used to be navy for
+> admin and teal for the portal. The portal's teal is gone: the portal now IS
+> the base panel, and ADMIN is the block that overrides. Notes describing a
+> teal customer portal are stale.
 
 That is the *whole* difference. It is one token block in `panel.css`
-(`[data-surface="panel"][data-frontend="customer"]`, custom properties only,
+(`[data-surface="panel"][data-frontend="admin"]`, custom properties only,
 pinned by `design.test.ts`) — **no component anywhere branches on the target**,
 and `target.ts` still carries no class names, no conditional components and no
 second layout. Everything else about the two products stays identical.
@@ -91,7 +97,7 @@ second layout. Everything else about the two products stays identical.
 The old regression check — diffing the design rule sets in
 `dist/_astro/Layout.*.css` for **zero** differences — therefore no longer holds
 verbatim: the two builds now legitimately differ by that one token block. The
-check is "identical **apart from** the `[data-frontend="customer"]` rule".
+check is "identical **apart from** the `[data-frontend="admin"]` rule".
 (Tailwind *utility* sets have always differed legitimately, because admin
 composes more extensions and the `@source` scan generates more utilities.)
 
@@ -149,6 +155,18 @@ invalid `--nav-hue: undefined`; and **every nav group must be mapped in
 `HUES`** — `tools` was missing, and its hashed fallback happened to land on
 the same violet as `content`, so two adjacent zones read as one. A test pins
 one-distinct-hue-per-group.
+
+**A distinct token name is not a distinct colour (0.18.1).** That test compares
+hue *names*, so it stayed green while two zones rendered the same red.
+`verwaltung` is mapped to `var(--tds-panel-accent)`, and tds-shared 0.20.0
+moved the **admin** accent to the brand burgundy — which put it ΔE 12 from
+`--color-cat-rose`, where `tools` sat. `tools` now reads `--color-info`, the
+one hue no nav group had claimed. Two guards, because neither repo can see the
+other: `panelHues.test.ts` pins the mapping here, and tds-shared's
+`design.test.ts` measures the resulting palette separation (ΔE > 15 for every
+admin zone pair, both themes). **Whenever the panel accent moves, re-check the
+categorical zones against it** — contrast tests will not catch this, since two
+identical reds both clear AA against the rail perfectly well.
 
 **Nav icons come from the manifest.** `NavEntry.icon` has been in the contract
 from the start and every extension declares one (`life-buoy`, `receipt`,

@@ -40,7 +40,19 @@ const HUES: Record<string, string> = {
   abrechnung: "var(--color-cat-amber)",
   content: "var(--color-cat-violet)",
   work: "var(--color-cat-teal)",
-  tools: "var(--color-cat-rose)",
+  // Tools used to read `--color-cat-rose`, which was free while the panel
+  // accent was the navy. It is not free any more: tds-shared 0.20.0 moved
+  // the ADMIN accent to `--color-management` (the brand burgundy), and
+  // `verwaltung` below takes the accent — so Verwaltung and Tools were the
+  // two closest zones in the rail at ΔE 12, roughly half the next-closest
+  // pair, i.e. two reds a metre from the screen. `--color-info` is the one
+  // hue no nav group had claimed (it is used by widgets only), and it puts
+  // the worst pair back at ΔE 19+ in both themes.
+  //
+  // tds-shared's design.test.ts measures that separation on the palette,
+  // but it cannot see THIS file — the mapping is pinned below in
+  // panelHues.test.ts instead. Both have to move together.
+  tools: "var(--color-info)",
   // The catch-all bucket deliberately takes the neutral rather than a
   // categorical hue: it is "everything that declared no group", so it has no
   // theme to signal, and leaving it uncoloured keeps all five categorical
