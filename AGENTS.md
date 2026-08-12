@@ -83,7 +83,7 @@ frontend reads the brand burgundy, the customer portal reads the brand navy**,
 so a user with both open knows which surface they are on — and, more to the
 point, knows when they are holding management rights.
 
-> **Reversed in tds-shared 0.20.0 / host 0.18.1.** It used to be navy for
+> **Reversed in tds-shared 0.20.1 / host 0.18.1.** It used to be navy for
 > admin and teal for the portal. The portal's teal is gone: the portal now IS
 > the base panel, and ADMIN is the block that overrides. Notes describing a
 > teal customer portal are stale.
@@ -158,7 +158,7 @@ one-distinct-hue-per-group.
 
 **A distinct token name is not a distinct colour (0.18.1).** That test compares
 hue *names*, so it stayed green while two zones rendered the same red.
-`verwaltung` is mapped to `var(--tds-panel-accent)`, and tds-shared 0.20.0
+`verwaltung` is mapped to `var(--tds-panel-accent)`, and tds-shared 0.20.1
 moved the **admin** accent to the brand burgundy — which put it ΔE 12 from
 `--color-cat-rose`, where `tools` sat. `tools` now reads `--color-info`, the
 one hue no nav group had claimed. Two guards, because neither repo can see the
