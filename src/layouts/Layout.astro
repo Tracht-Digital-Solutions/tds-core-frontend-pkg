@@ -532,11 +532,11 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           import { initSidebarCollapse } from "../lib/sidebarCollapse";
           initSidebarCollapse();
         </script>
-        {/* NB no `define:vars` here — it implies `is:inline`, and an inline
-            script is not bundled, so these imports would reach the browser as
-            bare specifiers. The target is imported from the same module the
-            frontmatter uses instead. */}
         <script>
+          // NB no `define:vars` on this script: it implies `is:inline`, and an
+          // inline script is not bundled — these imports would reach the
+          // browser as bare specifiers. The target is imported from the same
+          // module the frontmatter uses instead.
           import { setUnauthorizedHandler } from "@tracht-digital-solutions/tds-shared/api";
           import { onUnauthorized } from "../lib/auth";
           import { initNotificationFeed } from "../lib/notificationFeed";
