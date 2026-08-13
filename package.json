@@ -32,7 +32,7 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@fontsource/lato": "^5.2.7",
     "@tracht-digital-solutions/tds-frontend-contract": "^1.0.0",
-    "@tracht-digital-solutions/tds-shared": "^0.20.2"
+    "@tracht-digital-solutions/tds-shared": "^0.21.0"
   },
   "peerDependencies": {
     "@astrojs/react": ">=5",

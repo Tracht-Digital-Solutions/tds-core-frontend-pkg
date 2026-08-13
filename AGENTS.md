@@ -281,7 +281,10 @@ service alive (`tds-core-frontend-api#8`).
 
 `fetchCompanies()` now asks the composed `tds-ext-customers` endpoint
 (`GET /admin/customers`, identical payload) first and falls back to the legacy
-one. **The fallback is deliberate, not indecision:** the composed frontend
+one. It reads **both** body keys — the composed extension emits `companies` AND
+`customers` for the length of the rename, the legacy API only ever emits
+`customers`; reading one of them alone breaks at a different moment depending on
+which one you pick. **The fallback is deliberate, not indecision:** the composed frontend
 service cannot boot until `services/frontend/.env` + the `tds_frontend` DB exist,
 so a straight switch would have broken membership editing *today* to fix it
 *later*. With the fallback the call works on both sides of go-live and the legacy
@@ -677,27 +680,121 @@ floating support widget — **one source, two surfaces**.
   in an article can only ever render as text.
 
 
-## User management (Nutzerverwaltung)
+## Access control (`/users` → `AccessAdmin.tsx`)
 
-`UsersAdmin.tsx` is the full editor: list/create/reset-password/delete plus a
-per-user form for the admin / support-agent / blog-author flags, account status,
-and **company memberships with per-company portal permissions** (the fine-grained
-RBAC). Users come from tds-auth-api (`/admin/users`; `PATCH` already accepts
-`memberships`, `isSupportAgent`, `isBlogAuthor`, `status`), companies from
-tds-customer-api (`GET /customer/admin/customers` via the gateway prefix,
-`CUSTOMER_API_URL`). Portal permission keys/labels/presets come from
-`tds-shared/permissions` (`PORTAL_PERMISSIONS`) — never inline them. Admins bypass
-portal permissions, so their memberships are cleared on save. The company list is
-best-effort: unreachable ⇒ ids shown instead of names, editing still works. (No
-auth-API change was needed — the endpoints already existed. Avatar/bio/author-
-snapshot from the old tds-admin editor are intentionally omitted — they pull in
-content-api; add them only if the blog byline needs them here.)
+One route, three tabs — **Benutzer | Gruppen | Firmen-Kontingente**. Tabs rather
+than three `BASE_ROUTES` entries because groups and quotas are edited a couple of
+times a year and only make sense next to the users they apply to; splitting them
+out would cost two permanent nav rows in *both* products. Each panel mounts on
+first view and then stays mounted (a tab switch must not throw away a half-typed
+form, and re-mounting would re-fetch the catalog).
+
+**Benutzer — `UsersAdmin.tsx`.** List/create/reset-password/delete plus the
+per-user form: admin / support-agent / blog-author flags, account status, and
+**company memberships**. A membership now carries four things: direct
+`permissions`, `groupIds`, `isCompanyAdmin`, and an optional `permissionCeiling`
+(empty = inherit the company's).
+
+- **Permission options come from the COMPOSED catalog** (`GET
+  ${API_BASE}/admin/permissions`, every module's contribution), grouped by
+  section, falling back to `tds-shared`'s `PORTAL_PERMISSIONS` when that service
+  is unreachable. That fallback is a *seed set and UI fallback* now — not the
+  definition of a valid right. Offering only those nine keys is exactly what
+  Phase 2 fixed: the panel composes thirteen extensions and their rights were
+  ungrantable here.
+- **A stored key the catalog does not know still renders**, as a removable
+  warning chip. Loosening the backend's validation was one-way; this is what
+  keeps it auditable.
+- **The four role-preset buttons are gone.** They are real groups now (seeded
+  `is_system` rows). What is left is one button that clears the DIRECT grants —
+  it deliberately does not touch the group boxes, because group rights are added
+  server-side.
+
+**Gruppen — `GroupsAdmin.tsx`.** A group is a named permission bundle, owned
+either by the platform (`companyId = 0`, assignable everywhere) or by one
+company. Same row, the scope is the only difference — which is why a company
+admin's own groups need no second concept. System groups keep editable rights but
+cannot be renamed or deleted; something is assigned to them. Every write revokes
+sessions (the resolved union rides in the JWT), and the screen SAYS how many —
+"saved" while nothing changes for an hour gets debugged twice.
+
+**Firmen-Kontingente — `CompanyQuotasAdmin.tsx`.** `maxUsers` and
+`allowedPermissions` per company, plus `allowCustomGroups`. Two "unlimited"
+states that must not be collapsed: `maxUsers: null` = no cap;
+`allowedPermissions: null` = no ceiling, while `[]` = may grant nothing.
+Unticking "Alle Rechte freigeben" seeds the box list from the full catalog so an
+admin subtracts rather than rebuilds. Quotas bind delegation only — a platform
+admin is never subject to them.
+
+## `/firma` — the delegated company-admin surface
+
+`CompanyUsersAdmin.tsx`, reached from a nav row that ships `hidden` and is
+unhidden by `lib/revealNav.ts` against the memoised `/me`. **Hiding is not a
+permission check** — every `/company/*` call is gated by auth-api's
+`CompanyAdminMiddleware`; this only avoids offering a page that would 403.
+
+It lives in the **host**, not in the Firmen extension: `tds-customer-frontend`
+composes only support-tickets/billing/messages/projects/documents, and a company
+admin signs in to the *portal*. The shell is what both products build.
+
+Seat counts, the permission ceiling and the assignable groups all arrive in the
+list payload — this screen never computes them. `describeFailure()` in
+`lib/companyAdmin.ts` maps the backend's named refusals (`seat_limit`,
+`permission_not_allowed`, `last_company_admin`, …) to German sentences, which is
+why a rejection names the offending right instead of saying "Forbidden".
+
+It resolves its company with `getActiveCompany()` and an explicit fallback,
+**not** `resolveActiveCompany()`: that clears a stored pick when it is not in the
+list, and the list here is a SUBSET (companies *administered*). A plain member of
+A who administers B would otherwise lose their panel-wide selection just by
+opening the page.
+
+## The active company (`lib/activeCompany.ts`)
+
+A login can hold a different role in each company it belongs to, so "the active
+one" is a per-session UI choice that scopes nearly every composed-API call. It
+lives in `localStorage` under `${HINT_PREFIX}_active_company` — not a cookie (the
+shared one is httpOnly and belongs to auth; a second `.tracht-digital.de` cookie
+would leak the selection between the admin panel and the portal, where it
+legitimately differs) and not the URL (every extension route would have to carry
+it). Tampering buys nothing: `JwtUserContext::resolveCompany()` checks the id
+against the *signed* claim.
+
+The switcher is in the profile menu, rendered only for more than one membership,
+and it **reloads** on pick. Every island has fetched its data by then; a reload is
+ten honest lines against a global invalidation bus that every extension would
+have to remember to subscribe to.
+
+### `actAsHeaders()` — read this before touching the condition
+
+The shell registers it as tds-shared's `setRequestHeadersProvider`. `AUTH_API_URL`
+defaults to `https://api.tracht-digital.de/auth`, which **starts with** `API_BASE`
+`https://api.tracht-digital.de`, so a plain `startsWith(API_BASE)` sends
+`X-Act-As-Company` to auth-api too — whose CORS allow-list carries only
+`Content-Type` and `Authorization`. The preflight then fails and `/me`,
+`/refresh`, logout and all of user management stop working *together*, which
+reads as "the panel is broken". The auth prefix is excluded FIRST, and the
+function lives in a `.ts` file precisely so it can have a test — an `.astro`
+script is compiled by neither vitest nor tsc.
+
+### `companyId` vs `customerId` on `/me`
+
+Both are optional on `MeCompany` and read through `companyIdOf()` /
+`membershipIds()`. auth-api emits both for one release so a token minted before
+the deploy keeps working; typing `companyId` as required would let `c.companyId`
+compile everywhere while being `undefined` at runtime for every older session.
 
 ## Status / next
 
 Composition proven end-to-end (routes + nav + hydrated widgets + settings), auth
 gate + chrome + tds-shared-pkg wired, Wiki / users (incl. fine-grained permission +
 membership editing) / settings pages built, per-user dashboard layout done, both
-product targets (admin/customer) build + deploy. Next: move the dashboard-layout
-DDL into a base migration once core-frontend-api gains a migrator; optionally port the
-author-profile (avatar/bio) editor if the blog byline is managed from here.
+product targets (admin/customer) build + deploy. Groups, per-company quotas, the
+company admin surface (`/firma`) and the company switcher are in — they need
+tds-auth-api **0.6.0** live (i.e. a `tds-gateway-api` release), and the first
+company admin per company must be promoted by hand once (see that repo's
+`RUNBOOK.md`) or the whole feature looks broken. Next: move the dashboard-layout
+DDL into a base migration once core-frontend-api gains a migrator; drop the
+`customers`/`customerId`/`X-Act-As-Customer` aliases in the follow-up release;
+optionally port the author-profile (avatar/bio) editor if the blog byline is
+managed from here.

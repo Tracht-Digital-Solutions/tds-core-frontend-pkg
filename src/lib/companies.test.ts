@@ -170,3 +170,35 @@ describe("fetchCompanies", () => {
     }
   });
 });
+
+describe("the rename transition", () => {
+  it("prefers the new `companies` key when the extension sends both", async () => {
+    // The composed extension emits both spellings for one release; reading
+    // only `customers` would go dark the moment the alias is dropped.
+    route({
+      [COMPOSED]: response(200, {
+        companies: [{ id: 1, name: "Acme" }],
+        customers: [{ id: 1, name: "Acme" }],
+      }),
+    });
+    const { fetchCompanies } = await load();
+
+    expect(await fetchCompanies()).toEqual({
+      companies: [{ id: 1, name: "Acme" }],
+      source: "composed",
+    });
+  });
+
+  it("still reads a `customers`-only body — the legacy API never learns the new name", async () => {
+    route({
+      [COMPOSED]: response(500, {}),
+      [LEGACY]: response(200, { customers: [{ id: 7, name: "Beta GmbH" }] }),
+    });
+    const { fetchCompanies } = await load();
+
+    expect(await fetchCompanies()).toEqual({
+      companies: [{ id: 7, name: "Beta GmbH" }],
+      source: "legacy",
+    });
+  });
+});

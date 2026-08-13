@@ -1,0 +1,20 @@
+---
+import Layout from "../layouts/Layout.astro";
+import CompanyUsersAdmin from "../components/CompanyUsersAdmin.tsx";
+---
+
+<Layout title="Meine Firma">
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <div>
+        <p class="tds-page__eyebrow">Firma</p>
+        <h1 class="tds-page__title">Benutzer meiner Firma</h1>
+        <p class="tds-page__lede">
+          Legen Sie Benutzer Ihrer Firma an, weisen Sie ihnen Gruppen und Rechte zu
+          und bestimmen Sie, wer die Firma mitverwalten darf.
+        </p>
+      </div>
+    </div>
+    <CompanyUsersAdmin client:load />
+  </section>
+</Layout>

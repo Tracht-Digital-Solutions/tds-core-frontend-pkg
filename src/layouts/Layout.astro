@@ -60,6 +60,8 @@ interface NavInput {
   group?: string | undefined;
   /** Absolute link to another property — opens in a new tab (see below). */
   external?: boolean | undefined;
+  /** Render hidden and unhide at runtime — see NavList and `revealNav`. */
+  revealFor?: "company-admin" | undefined;
 }
 
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
@@ -69,7 +71,19 @@ interface NavInput {
 const BASE_GROUP = "verwaltung";
 const baseNav: NavInput[] = [
   { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
-  { href: "/users", label: "Nutzer", id: "users", icon: "users", order: 1 },
+  { href: "/users", label: "Benutzer", id: "users", icon: "users", order: 1 },
+  // The company admin's own user management. Rendered hidden and revealed by
+  // the shell script once /me confirms the role — the nav is built at BUILD
+  // time and cannot know it. In BOTH products: a company admin signs in to the
+  // portal, and the Firmen extension is admin-product only.
+  {
+    href: "/firma",
+    label: "Meine Firma",
+    id: "firma",
+    icon: "building",
+    order: 2,
+    revealFor: "company-admin",
+  },
   // One route, two wikis (see pages/wiki.astro): the admin build gets the API
   // reference, the portal gets FAQs and handbooks. The label and icon follow the
   // content, because "Wiki" told a customer nothing about what is behind it.
@@ -78,9 +92,9 @@ const baseNav: NavInput[] = [
     label: FRONTEND_TARGET === "admin" ? "API-Referenz" : "Hilfe",
     id: "wiki",
     icon: FRONTEND_TARGET === "admin" ? "book-open" : "life-buoy",
-    order: 2,
+    order: 3,
   },
-  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 3 },
+  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 4 },
 ];
 
 // Module lists what this build is composed of and starts the deploy pipelines.
@@ -88,7 +102,7 @@ const baseNav: NavInput[] = [
 // but the customer portal must not advertise a production deploy — and the API
 // gates every /admin/modules route on `isAdmin` regardless of who finds the URL.
 if (FRONTEND_TARGET === "admin") {
-  baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 4 });
+  baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 5 });
 
   // The PUBLIC tools site. It joins the `tools` group so it sits beside the
   // tools extension's own "Tools" entry (`/tools-verwaltung`, the catalog
@@ -216,6 +230,7 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
       // an external entry — stated rather than special-cased.
       active: isActive(item.href),
       external: item.external,
+      revealFor: item.revealFor,
     })),
 }));
 ---
@@ -563,10 +578,15 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           // inline script is not bundled — these imports would reach the
           // browser as bare specifiers. The target is imported from the same
           // module the frontmatter uses instead.
-          import { setUnauthorizedHandler } from "@tracht-digital-solutions/tds-shared/api";
+          import {
+            setRequestHeadersProvider,
+            setUnauthorizedHandler,
+          } from "@tracht-digital-solutions/tds-shared/api";
           import { onUnauthorized } from "../lib/auth";
+          import { actAsHeaders } from "../lib/activeCompany";
           import { initNotificationFeed } from "../lib/notificationFeed";
           import { initPreferences } from "../lib/preferences";
+          import { revealNav } from "../lib/revealNav";
           import { FRONTEND_TARGET } from "../config/target";
 
           // Extension islands call the API through tds-shared's `apiFetch`,
@@ -575,6 +595,16 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           // confirm against /me, try a refresh, and only then treat the session
           // as dead.
           setUnauthorizedHandler(onUnauthorized);
+
+          // The active company rides on every COMPOSED-API call, so extension
+          // islands read the tenant the user picked. The condition lives in
+          // lib/activeCompany.ts with its own test — getting it wrong sends the
+          // header to auth-api, whose CORS refuses it, and the login breaks.
+          setRequestHeadersProvider(actAsHeaders);
+
+          // Nav rows that depend on the principal (currently just "Meine
+          // Firma"). Uses the memoised /me, so it costs no extra request.
+          void revealNav();
 
           // One poller for every composed module. Not in `bare` mode: the
           // login/gate page has no session to poll with.

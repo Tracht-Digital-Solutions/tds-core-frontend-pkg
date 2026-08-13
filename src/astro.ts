@@ -29,6 +29,11 @@ const BASE_ROUTES: ReadonlyArray<{ pattern: string; entrypoint: string }> = [
   // Reached from the shell's profile menu, deliberately NOT from the nav: it
   // is personal settings, not a section of the product.
   { pattern: "/profil", entrypoint: `${PKG}/src/pages/profil.astro` },
+  // The company admin's own user management. Injected into BOTH products —
+  // a company admin signs in to the portal, and the Firmen extension is
+  // admin-product only, so this has to come from the shell. The nav entry is
+  // conditional (see Layout.astro); the route always exists.
+  { pattern: "/firma", entrypoint: `${PKG}/src/pages/firma.astro` },
   { pattern: "/module", entrypoint: `${PKG}/src/pages/module.astro` },
   { pattern: "/einstellungen", entrypoint: `${PKG}/src/pages/einstellungen.astro` },
   { pattern: "/wiki", entrypoint: `${PKG}/src/pages/wiki.astro` },

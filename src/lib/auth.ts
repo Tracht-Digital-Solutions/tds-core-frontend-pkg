@@ -65,8 +65,40 @@ export function hasAuthedHint(): boolean {
 
 /** One company the principal belongs to, as `/me` reports it. */
 export interface MeCompany {
-  customerId: number;
+  /**
+   * Optional on purpose for the length of the rename: a token minted before the
+   * deploy carries only `customerId`, and typing this as required would let
+   * `c.companyId` compile everywhere while being `undefined` at runtime for
+   * every session older than the release. Read it via `companyIdOf`.
+   */
+  companyId?: number;
+  /** @deprecated alias of `companyId`, emitted by auth-api for one release. */
+  customerId?: number;
   permissions?: string[];
+  /** Whether this membership may manage the company's own users. */
+  isCompanyAdmin?: boolean;
+  groupIds?: number[];
+  permissionCeiling?: string[] | null;
+}
+
+/**
+ * The id of one membership, whichever spelling this token carries.
+ *
+ * `company_id` replaced `customer_id` in the rename, and auth-api emits both
+ * for one release so a token minted before the deploy keeps working. Every
+ * reader goes through this rather than picking one field — a `?? 0` here would
+ * quietly scope a request to a company that does not exist.
+ */
+export function companyIdOf(company: MeCompany): number | null {
+  return company.companyId ?? company.customerId ?? null;
+}
+
+/** The company ids of a principal's memberships, in the order /me reports them. */
+export function membershipIds(me: Me | null, only?: (c: MeCompany) => boolean): number[] {
+  return (me?.companies ?? [])
+    .filter((c) => only === undefined || only(c))
+    .map(companyIdOf)
+    .filter((id): id is number => id !== null);
 }
 
 /**

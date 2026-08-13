@@ -183,3 +183,92 @@ describe("UserMenu", () => {
     expect(urls.some((u) => u.includes("/me/companies"))).toBe(false);
   });
 });
+
+/**
+ * The company switcher.
+ *
+ * A login can hold a different role in each company it belongs to, so picking
+ * the wrong one is not a cosmetic error — it scopes every list in the panel.
+ */
+describe("UserMenu — Firmenwechsler", () => {
+  const TWO = {
+    ...ME,
+    companies: [
+      { companyId: 3, permissions: [] },
+      { companyId: 8, permissions: [] },
+    ],
+  };
+  const NAMES = {
+    "/me/companies": {
+      companies: [
+        { id: 3, name: "ACME GmbH" },
+        { id: 8, name: "Beispiel AG" },
+      ],
+    },
+  };
+
+  function twoCompanyFetch(handlers: Record<string, unknown> = NAMES) {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      for (const [fragment, body] of Object.entries(handlers)) {
+        if (url.includes(fragment)) return { ok: true, status: 200, json: async () => body } as Response;
+      }
+      if (url.includes("/me")) return { ok: true, status: 200, json: async () => TWO } as Response;
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    });
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("offers one entry per membership, with the active one checked", async () => {
+    await mount(twoCompanyFetch());
+    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+
+    const items = await screen.findAllByRole("menuitemradio");
+    expect(items.map((i) => i.textContent)).toEqual(["ACME GmbH", "Beispiel AG"]);
+    // Nothing stored yet, so the first membership is active.
+    expect(items[0].getAttribute("aria-checked")).toBe("true");
+    expect(items[1].getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("stores the pick and reloads", async () => {
+    const reload = vi.fn();
+    // jsdom's location.reload is not writable; replace the accessor.
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, reload, href: "https://panel.test/" },
+    });
+
+    await mount(twoCompanyFetch());
+    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Beispiel AG" }));
+
+    expect(localStorage.getItem("tds_admin_active_company")).toBe("8");
+    // Every island fetched its data long before the menu opened, and the
+    // active company scopes nearly all of it.
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("stays usable when the company DIRECTORY is unavailable", async () => {
+    // `/me/companies` lives in the composed API and its outage must not hide
+    // the switcher — a multi-company user would be stranded in whichever
+    // company happened to be active, with no way to tell or change it.
+    await mount(twoCompanyFetch({}));
+    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+
+    const items = await screen.findAllByRole("menuitemradio");
+    expect(items.map((i) => i.textContent)).toEqual(["Firma 3", "Firma 8"]);
+  });
+
+  it("is absent for a single membership", async () => {
+    // ME carries exactly one, spelled with the deprecated `customerId` alias —
+    // which is also the assertion that the alias is still read.
+    await mount(mockFetch({ "/me/companies": { companies: [{ id: 3, name: "ACME GmbH" }] } }));
+    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+
+    expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0);
+    expect((await screen.findAllByText("ACME GmbH")).length).toBeGreaterThan(0);
+  });
+});

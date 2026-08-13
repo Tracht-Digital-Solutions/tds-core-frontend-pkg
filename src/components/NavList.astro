@@ -26,6 +26,17 @@ export interface NavItem {
   active: boolean;
   /** Link to another property — opens in a new tab, with the usual rel guard. */
   external?: boolean | undefined;
+  /**
+   * Render the row hidden, to be revealed at runtime.
+   *
+   * The nav is built at BUILD time; whether this person administers a company
+   * is only known once `/me` answers. Rendering the row and unhiding it beats
+   * the alternatives: injecting it client-side would duplicate the markup and
+   * the hue logic, and showing it to everyone would offer a page that 403s.
+   * A visitor who is not a company admin simply never sees it — and the route
+   * itself says so too, rather than relying on the nav to hide it.
+   */
+  revealFor?: "company-admin" | undefined;
 }
 
 export interface NavSection {
@@ -57,6 +68,8 @@ const { sections } = Astro.props;
             data-nav={item.id}
             data-tip={item.external ? `${item.label} (neuer Tab)` : item.label}
             aria-current={item.active ? "page" : undefined}
+            data-reveal-for={item.revealFor}
+            hidden={item.revealFor !== undefined}
             target={item.external ? "_blank" : undefined}
             {/* `noopener` is the security half (the opened page cannot reach
                 back through window.opener); `noreferrer` keeps it from learning

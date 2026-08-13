@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@tracht-digital-solutions/tds-shared/components";
 
-import { API_BASE, AUTH_API_URL, fetchMe, frontendFetch, logout, type Me } from "../lib/auth";
+import {
+  API_BASE,
+  AUTH_API_URL,
+  fetchMe,
+  frontendFetch,
+  logout,
+  membershipIds,
+  type Me,
+} from "../lib/auth";
+import { resolveActiveCompany, setActiveCompany } from "../lib/activeCompany";
 import { FRONTEND_TARGET, LOGIN_URL } from "../config/target";
 
 /**
@@ -48,6 +57,13 @@ const ICON = {
     </>
   ),
   chevron: <path d="m6 9 6 6 6-6" />,
+  building: (
+    <>
+      <rect width="16" height="20" x="4" y="2" rx="2" />
+      <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+    </>
+  ),
+  check: <polyline points="20 6 9 17 4 12" />,
 };
 
 function Glyph({ children, size = 16 }: { children: React.ReactNode; size?: number }) {
@@ -158,12 +174,43 @@ export default function UserMenu({ compact = false }: UserMenuProps) {
 
   const label = useMemo(() => me?.label ?? me?.name ?? me?.email ?? "", [me]);
 
+  /**
+   * The memberships, as ids, straight from the signed principal.
+   *
+   * `/me/companies` supplies NAMES and may be unavailable; the ids are what the
+   * switcher actually needs, so the list stays usable (as "Firma 12") when the
+   * composed API is down — a switcher that disappears whenever a directory
+   * lookup fails would strand a multi-company user in the wrong company.
+   */
+  const memberIds = useMemo(() => membershipIds(me), [me]);
+
+  const activeId = useMemo(() => resolveActiveCompany(memberIds), [memberIds]);
+
+  const companyName = useCallback(
+    (id: number) => companies.find((c) => c.id === id)?.name ?? `Firma ${id}`,
+    [companies],
+  );
+
   const companyLine = useMemo(() => {
     if (!me) return "";
     if (me.isAdmin) return FRONTEND_TARGET === "customer" ? "Kundenportal" : "Management";
-    const active = companies.find((c) => c.active) ?? companies[0];
-    return active?.name ?? "";
-  }, [me, companies]);
+    if (activeId !== null) return companyName(activeId);
+    return companies[0]?.name ?? "";
+  }, [me, companies, activeId, companyName]);
+
+  /**
+   * Switching reloads the page.
+   *
+   * Every island has fetched its data by the time the menu is open, and the
+   * active company scopes nearly all of it. A reload is ten honest lines; the
+   * alternative is a global invalidation bus that every extension would have to
+   * subscribe to — and forgetting to subscribe would show one company's data
+   * under another company's name, which is the worst outcome available here.
+   */
+  const switchTo = useCallback((id: number) => {
+    setActiveCompany(id);
+    location.reload();
+  }, []);
 
   // The gate owns "are you logged in"; a skeleton here would only add a
   // flicker to a header that is about to be correct either way.
@@ -231,6 +278,29 @@ export default function UserMenu({ compact = false }: UserMenuProps) {
             )}
           </span>
         </div>
+
+        {memberIds.length > 1 && (
+          <>
+            <hr className="tds-dropdown__sep" />
+            <p className="tds-dropdown__caption">Firma wechseln</p>
+            {memberIds.map((id) => (
+              <button
+                key={id}
+                type="button"
+                className="tds-dropdown__item"
+                role="menuitemradio"
+                aria-checked={id === activeId}
+                data-menu-item
+                onClick={() => switchTo(id)}
+              >
+                <span className="tds-dropdown__icon">
+                  <Glyph>{id === activeId ? ICON.check : ICON.building}</Glyph>
+                </span>
+                {companyName(id)}
+              </button>
+            ))}
+          </>
+        )}
 
         <hr className="tds-dropdown__sep" />
 

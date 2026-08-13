@@ -65,9 +65,15 @@ async function tryFetch(url: string): Promise<Company[] | null> {
   try {
     const res = await frontendFetch(url);
     if (!res.ok) return null;
-    const data = (await res.json()) as { customers?: unknown };
-    if (!Array.isArray(data.customers)) return null;
-    return data.customers.filter(isCompany);
+    const data = (await res.json()) as { companies?: unknown; customers?: unknown };
+    // Both keys, for the length of the rename: the composed extension emits
+    // `companies` AND `customers` for one release, the legacy customer-api only
+    // ever emits `customers`. Reading just one of them breaks at a different
+    // moment depending on which — `customers` alone dies when the alias is
+    // dropped, `companies` alone dies against the legacy fallback today.
+    const list = Array.isArray(data.companies) ? data.companies : data.customers;
+    if (!Array.isArray(list)) return null;
+    return list.filter(isCompany);
   } catch {
     // Network failure, or a 500 body that is not JSON — both mean "try the next
     // endpoint", never "the list is empty".

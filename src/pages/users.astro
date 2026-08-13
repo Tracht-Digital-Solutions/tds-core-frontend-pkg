@@ -1,16 +1,19 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import UsersAdmin from "../components/UsersAdmin.tsx";
+import AccessAdmin from "../components/AccessAdmin.tsx";
 ---
 
-<Layout title="Nutzerverwaltung">
+<Layout title="Benutzerverwaltung">
   <section class="tds-page">
     <div class="tds-page__head">
       <div>
         <p class="tds-page__eyebrow">Zugriff</p>
-        <h1 class="tds-page__title">Nutzerverwaltung</h1>
+        <h1 class="tds-page__title">Benutzerverwaltung</h1>
+        <p class="tds-page__lede">
+          Benutzer, ihre Gruppen und die Rechte, die eine Firma selbst vergeben darf.
+        </p>
       </div>
     </div>
-    <UsersAdmin client:load />
+    <AccessAdmin client:load />
   </section>
 </Layout>
