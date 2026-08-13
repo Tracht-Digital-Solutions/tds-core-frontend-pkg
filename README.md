@@ -3,7 +3,8 @@
 The **base frontend host**, published as a package
 (`@tracht-digital-solutions/tds-core-frontend`). It ships the shell (chrome,
 pre-paint auth gate, nav), the **base pages** (Dashboard/widget host, user
-management, Module = Inventar + Updates, Einstellungen, Wiki = FAQ + API-Referenz)
+management, Module = Inventar + Updates, Einstellungen, Wiki = API-Referenz im
+Admin-Build / Hilfe + Handbücher im Portal)
 and the **`coreFrontendBase` Astro integration**
 — consumed by the **product repos** (`tds-admin-frontend` / `tds-customer-frontend`),
 each of which composes this host with its own extension set + deploy pipeline.
@@ -67,7 +68,8 @@ npm run build                   # tsup → dist/astro.js (the integration)
 | `src/lib/auth.test.ts` | the **401 backstop** — a 401 is confirmed against `/me`, and only a `/me` that *also* 401s ends the session; one redirect under parallel 401s; the `?next=` round-trip; hint lifecycle incl. blocked storage |
 | `src/lib/dashboardLayout.test.ts` | saved-order application, unknown widgets appended **still visible**, the progressive-enhancement promise (no layout / API error / API unreachable all leave every widget visible in authored order), and the **save feedback**: success confirms, a rejected save reports its HTTP status and stays in edit mode, and the initial load stays silent |
 | `src/config/target.test.ts` | `PUBLIC_FRONTEND_TARGET` selection, and that the two products get **different** `HINT_PREFIX` values |
-| `src/content/faq.test.ts` | the `/wiki` FAQ: unique anchor-safe ids, per-target scoping, and that questions/answers stay **plain text** (they are interpolated, never `set:html`) |
+| `src/components/ApiReference.test.tsx` | the admin wiki: routes grouped by the **module that mounted them** (not by path segment), an undocumented route still listed and saying so, a doc entry with no route surfaced, filtering that reveals its matches, and a refusal to render a payload version it does not understand |
+| `src/components/HelpCenter.test.tsx` | the customer wiki: an empty or absent help API reading as "nothing here yet" rather than as a broken portal, a handbook body fetched only when its article is **opened**, FAQ answers rendered as text, markdown bodies rendered escape-first (an injected `<script>` stays text), and the call going to the **absolute** API host |
 | `src/astro.test.ts` | the injected base routes resolve to files that exist, are package subpaths, that no in-app `/login` route returns, and that the module inventory **degrades** (declared-but-missing package → a row with an empty version, unreadable root → empty list) rather than failing a product build |
 | `src/lib/moduleUpdates.test.ts` | the **0.x caret rule** (`^0.1.1` = `>=0.1.1 <0.2.0`), a prerelease sorting below its release, and that an unparseable range answers `null` — not `false` — so "cannot tell" never renders as "Repin erforderlich" |
 | `src/components/ModulesAdmin.test.tsx` | that a repin row offers **no** deploy button, that the confirmation admits one rebuild covers every in-range module, and that a failed dispatch carries its HTTP status |

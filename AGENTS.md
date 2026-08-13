@@ -549,28 +549,82 @@ answers **200 + HTML** — `res.ok` true, `json()` throwing, the catch rendering
 calm empty state. That is precisely how the contact inbox reported "Keine
 Anfragen." while the rows sat in the database.
 
-## Wiki (`/wiki`) — FAQ + API reference
+## `/wiki` — TWO wikis behind one route
 
-Two halves on one page, and the nav label is plain **"Wiki"** (it used to be
-"API-Wiki", which was wrong for the customer portal — that build has no API half).
+There are two wikis, and which one a build gets is decided by `FRONTEND_TARGET`
+in `pages/wiki.astro`. The branches are **mutually exclusive** — this is not one
+page with an optional section, which is what it used to be.
 
-- **FAQ (both targets).** `src/content/faq.ts` holds the entries; `FaqList.astro`
-  renders one native `<details>` each — no island, no JS, and **no CSS of its own**
-  (`.tds-card` + Tailwind utilities only). Answers are a **plain-text paragraph
-  list** and are interpolated, never `set:html`; keep it that way, and keep the
-  `id`s stable — they are the `/wiki#faq-<id>` anchors. `target` scopes an entry to
-  one product; omit it for both. `faq.test.ts` pins ids, scoping and the no-markup
-  rule.
-  This is where the **central-login/SSO explanation lives** (`sso-scope`,
-  `sso-logout`, `password-change`): `tds-auth-frontend`'s login page deliberately
-  no longer advertises that one login covers Verwaltung/Portal/Tools — don't move
-  that copy back in front of the login. Platform-behaviour answers belong here (they
-  ship with the shell that implements them); editable *support* content belongs in
-  the Live-Chat-Widget FAQ (`tds-ext-live-chat-cta-pkg`, DB-backed, edited under
-  `/live-chat`) — the same three entries are seeded there for the widget.
-- **API reference (admin target only).** `ApiWiki.tsx` against `/wiki.json`, which
-  is admin-gated at the endpoint — so the customer build omits the section instead
-  of rendering a guaranteed "Nur für Admins." error.
+| Target | Nav label | Content |
+|---|---|---|
+| `admin` | **API-Referenz** (`book-open`) | The full API of the base + every composed module. No FAQs. |
+| `customer` | **Hilfe** (`life-buoy`) | FAQs and handbooks for the software the customer has. No API. |
+
+One route rather than two: `coreFrontendBase()` takes no target and injects the
+same base-route set into both products, and "Wiki" is the same idea in both
+places — only its content differs. Adding a second route would also mean
+touching the `BASE` shadow-guard array in all thirteen `tds-ext-*` suites.
+
+### Admin: `components/ApiReference.tsx`
+
+Renders `/wiki.json` **v2** — introspected Slim routes joined with the prose each
+module contributes through the contract's `ApiDocSource`. Things worth keeping:
+
+- **Grouping is by the module that MOUNTED the route** (`ModuleRegistry::routeOwners()`
+  on the backend), not by path segment. The old version grouped by first segment,
+  which collapsed all thirteen modules' `/admin/*` routes into one block called
+  `admin` — the single thing that made the page useless as a reference.
+- **The German module name comes from the BUILD, not the API.** The endpoint emits
+  ids; the name lives in each extension's manifest, which the product already
+  composed into `virtual:frontend-modules`. The page reads it there and hands it
+  in as a prop (same arrangement as `module.astro` → `ModulesAdmin`). Duplicating
+  names into the backend would be a second source of truth that nothing syncs.
+- **An undocumented route is still listed** and says so. Introspection is
+  authoritative: nobody may shrink the reference by forgetting to write something
+  down. A doc entry whose route no longer exists shows up as a warning
+  (`stats.orphan_docs`) rather than being swallowed.
+- **Collapsing is native `<details>`**, not React state — keyboard and
+  screen-reader semantics for free, and the browser keeps each section's state
+  while the filter re-renders around it. "Alles aufklappen" works by bumping a key
+  that remounts them. Filtering auto-opens its matches; leaving them collapsed
+  would defeat the point of filtering.
+- **The component refuses a payload whose `version` is not 2.** The backend ships
+  on its own release train; rendering v1 data here would produce a page of blanks
+  with no explanation.
+- Parameter and response tables carry `tds-table` + `tabindex="0"` + `role="region"`
+  + a label — the primitive becomes a horizontal scroller below 40rem, and a table
+  with no focusable cell is otherwise unreachable by keyboard.
+
+### Customer: `components/HelpCenter.tsx`
+
+FAQs and handbooks from the **database**, via the public `/help/faqs`,
+`/help/articles` and `/help/articles/{slug}`. Maintained in the admin frontend
+under *Wiki-Inhalte* (`tds-ext-live-chat-cta-pkg`), and the same rows feed the
+floating support widget — **one source, two surfaces**.
+
+- **`src/content/faq.ts` is GONE.** It held three hard-coded entries that had to be
+  hand-synced with the rows migration `20260801000006` seeds into `live_chat_faq`
+  — the seed's own docblock asked for that sync. Nothing was lost in the deletion:
+  the three entries exist in DE and EN in the database. Do not reintroduce a
+  code-side FAQ list. (`FaqList.astro` and `ApiWiki.tsx` went with it.)
+- **Those routes belong to an extension the customer product does not compose** on
+  the frontend. That is fine and not new: the shell already mounts the shared
+  `LiveChatCta` island unconditionally against the same module's public API. If a
+  backend build lacks the module, the calls 404.
+- **A 404 or an empty answer is an EMPTY WIKI, not an error.** The frontend
+  service's database is still a go-live step, so the empty state is what a real
+  customer may meet first; it must read as "nothing here yet" and offer the
+  support route. Only a genuine transport failure shows the warning banner.
+- **A handbook body is fetched when its article is opened**, not with the list.
+  `/help/articles` deliberately returns no bodies: an article is markdown of
+  arbitrary length, and loading two hundred of them to draw a list of headings is
+  the difference between a page that opens and one that stalls.
+- **FAQ answers are plain text and are interpolated per paragraph, never
+  `set:html`** — that is the contract with the widget's renderer. Handbook bodies
+  ARE markdown and go through `renderMarkdown` from
+  `@tracht-digital-solutions/tds-shared/markdown`, which is escape-first: raw HTML
+  in an article can only ever render as text.
+
 
 ## User management (Nutzerverwaltung)
 

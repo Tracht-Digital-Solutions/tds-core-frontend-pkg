@@ -69,9 +69,16 @@ const BASE_GROUP = "verwaltung";
 const baseNav: NavInput[] = [
   { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
   { href: "/users", label: "Nutzer", id: "users", icon: "users", order: 1 },
-  // Label is "Wiki", not "API-Wiki": the page leads with the user-facing FAQ
-  // and only the admin build appends the API route map (see pages/wiki.astro).
-  { href: "/wiki", label: "Wiki", id: "wiki", icon: "book-open", order: 2 },
+  // One route, two wikis (see pages/wiki.astro): the admin build gets the API
+  // reference, the portal gets FAQs and handbooks. The label and icon follow the
+  // content, because "Wiki" told a customer nothing about what is behind it.
+  {
+    href: "/wiki",
+    label: FRONTEND_TARGET === "admin" ? "API-Referenz" : "Hilfe",
+    id: "wiki",
+    icon: FRONTEND_TARGET === "admin" ? "book-open" : "life-buoy",
+    order: 2,
+  },
   { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 3 },
 ];
 

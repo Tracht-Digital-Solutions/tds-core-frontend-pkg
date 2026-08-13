@@ -1,45 +1,65 @@
 ---
+/**
+ * `/wiki` — TWO different wikis behind one route, chosen by the product target.
+ *
+ *   admin    → the API reference, and nothing else. A structured, collapsible
+ *              description of every route the composed backend serves.
+ *   customer → FAQs and handbooks for the software the customer has been given,
+ *              and nothing else. No API.
+ *
+ * One route rather than two because the injected base-route set is the same for
+ * both products (`coreFrontendBase` takes no target), and because "Wiki" is the
+ * same idea in both places — only its content differs. The two branches are
+ * mutually exclusive: this is not a page with an optional section.
+ *
+ * The customer half reads its content from the database through `/help/*`,
+ * maintained under *Wiki-Inhalte* in the admin frontend. There is deliberately
+ * no code-side FAQ list any more.
+ */
 import Layout from "../layouts/Layout.astro";
-import ApiWiki from "../components/ApiWiki.tsx";
-import FaqList from "../components/FaqList.astro";
-import { faqForTarget } from "../content/faq";
+import ApiReference from "../components/ApiReference.tsx";
+import HelpCenter from "../components/HelpCenter.tsx";
 import { FRONTEND_TARGET } from "../config/target";
+import { modules } from "virtual:frontend-modules";
 
-// The API route map is admin-only at the endpoint (`/wiki.json` returns 403 for
-// everyone else), so the customer portal only renders the FAQ half instead of
-// shipping a section that can never resolve to anything but an error.
-const showApiReference = FRONTEND_TARGET === "admin";
-const faq = faqForTarget();
+const isAdmin = FRONTEND_TARGET === "admin";
 ---
 
-<Layout title="Wiki">
-  <section class="tds-page">
-    <div class="tds-page__head">
-      <div>
-        <p class="tds-page__eyebrow">Referenz</p>
-        <h1 class="tds-page__title">Wiki</h1>
-      </div>
-    </div>
-    <p class="tds-page__lede max-w-2xl">
-      Häufige Fragen zur Nutzung{
-        showApiReference ? " und die vollständige Routenübersicht der API" : ""
-      }. Rein intern, daher lebt die Referenz nur hier im Frontend.
-    </p>
-
-    <h2 class="mt-6 mb-3 text-lg font-semibold">Häufige Fragen</h2>
-    <FaqList entries={faq} />
-
-    {
-      showApiReference && (
-        <>
-          <h2 class="mt-8 mb-3 text-lg font-semibold">API-Referenz</h2>
-          <p class="mb-3 text-sm opacity-70 max-w-2xl">
-            Vollständige Routenübersicht der Base-API + aller komponierten Module —
-            direkt aus den Slim-Routendefinitionen generiert.
-          </p>
-          <ApiWiki client:load />
-        </>
-      )
-    }
-  </section>
-</Layout>
+{
+  isAdmin ? (
+    <Layout title="API-Referenz">
+      <section class="tds-page">
+        <div class="tds-page__head">
+          <div>
+            <p class="tds-page__eyebrow">Referenz</p>
+            <h1 class="tds-page__title">API-Referenz</h1>
+            <p class="tds-page__lede max-w-2xl">
+              Jede Route der Basis und aller komponierten Module — Zweck, Parameter,
+              Antworten und das benötigte Recht. Die Liste entsteht aus den
+              registrierten Slim-Routen, die Beschreibungen liefern die Module selbst.
+              Rein intern.
+            </p>
+          </div>
+        </div>
+        <ApiReference client:load modules={modules} />
+      </section>
+    </Layout>
+  ) : (
+    <Layout title="Hilfe">
+      <section class="tds-page">
+        <div class="tds-page__head">
+          <div>
+            <p class="tds-page__eyebrow">Wiki</p>
+            <h1 class="tds-page__title">Hilfe & Handbücher</h1>
+            <p class="tds-page__lede max-w-2xl">
+              Antworten auf häufige Fragen und Anleitungen zur Bedienung Ihrer
+              Software. Finden Sie hier nicht, was Sie suchen, hilft Ihnen der
+              Support gern weiter.
+            </p>
+          </div>
+        </div>
+        <HelpCenter client:load />
+      </section>
+    </Layout>
+  )
+}
