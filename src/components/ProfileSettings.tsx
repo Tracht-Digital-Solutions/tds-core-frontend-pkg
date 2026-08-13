@@ -344,7 +344,7 @@ export default function ProfileSettings() {
               <div className="tds-row" style={{ gap: "0.5rem" }}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-ghost"
                   disabled={avatarBusy}
                   onClick={() => fileRef.current?.click()}
                 >
@@ -522,7 +522,7 @@ export default function ProfileSettings() {
               Passwort und Passkeys werden zentral bei der Anmeldung verwaltet.
             </p>
             <div className="tds-toolbar" style={{ marginTop: "0.75rem" }}>
-              <a className="btn btn-secondary" href={`${LOGIN_URL}/passwort?next=${nextParam}`}>
+              <a className="btn btn-ghost" href={`${LOGIN_URL}/passwort?next=${nextParam}`}>
                 Passwort ändern
               </a>
               <a className="btn btn-ghost" href={`${LOGIN_URL}/passkeys?next=${nextParam}`}>
