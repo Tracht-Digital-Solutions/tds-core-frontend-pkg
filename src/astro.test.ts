@@ -46,11 +46,13 @@ describe("integration envelope", () => {
 });
 
 describe("injected routes", () => {
-  it("injects the five base pages", () => {
+  it("injects the six base pages", () => {
     expect(injectedRoutes().map((r) => r.pattern).sort()).toEqual([
       "/",
       "/einstellungen",
       "/module",
+      // Reached from the profile menu, deliberately not from the nav.
+      "/profil",
       "/users",
       "/wiki",
     ]);
@@ -93,7 +95,7 @@ describe("injected routes", () => {
     // The inventory step needs `config.root` + `updateConfig`; the routes must
     // not depend on it. A guard placed before the loop would take the whole
     // base panel down in any context that supplies a partial hook argument.
-    expect(injectedRoutes().length).toBe(5);
+    expect(injectedRoutes().length).toBe(6);
   });
 });
 

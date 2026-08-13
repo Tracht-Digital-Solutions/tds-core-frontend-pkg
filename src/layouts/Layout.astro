@@ -17,6 +17,7 @@ import {
 import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 import BrandWordmark from "../components/BrandWordmark.astro";
 import Icon from "../components/Icon.astro";
+import UserMenu from "../components/UserMenu.tsx";
 import NavList, { type NavSection } from "../components/NavList.astro";
 import { groupLabel, hueForKey, normaliseGroup } from "../lib/panelHues";
 import { registry } from "virtual:frontend-registry";
@@ -403,7 +404,10 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               </svg>
             </button>
             <BrandWordmark />
-            <span class="ml-auto"><ThemeToggle client:idle /></span>
+            <span class="ml-auto flex items-center gap-1">
+              <ThemeToggle client:idle />
+              <UserMenu client:idle compact />
+            </span>
           </header>
           <aside class="portal-sidebar hidden lg:flex lg:flex-col w-60 shrink-0 border-r">
             <div class="sidebar-head px-4 py-4 flex items-center gap-2">
@@ -424,7 +428,11 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               <NavList sections={navSections} />
             </div>
             <div class="sidebar-foot mt-auto px-4 py-3 flex items-center gap-2">
-              <ThemeToggle client:idle />
+              <!-- The ThemeToggle moved to the top bar, where it sits next to
+                   the profile menu that now owns the rest of "my account".
+                   Two toggles on one page would be two controls for one
+                   setting. The target label stays: it is the only thing in
+                   the rail that says which product this is. -->
               <span class="sidebar-hide-collapsed text-xs" style="color: var(--color-muted)">
                 {FRONTEND_TARGET === "customer" ? "Kundenportal" : "Management"}
               </span>
@@ -450,11 +458,22 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
             </div>
           </div>
 
-          <main id="main" class="panel-main min-w-0 flex-1 p-4 sm:p-6">
-            <div class="mx-auto w-full max-w-[90rem]">
-              <slot />
-            </div>
-          </main>
+          <!-- The rail's neighbour is a COLUMN, not the page itself: the top
+               bar has to sit above the canvas and stick while it scrolls.
+               `min-w-0` on the column is what keeps a wide table inside it
+               from pushing the whole layout out — `body { overflow-x: hidden }`
+               would then clip it silently rather than scrolling it. -->
+          <div class="flex flex-col min-w-0 flex-1">
+            <header class="panel-topbar hidden lg:flex">
+              <ThemeToggle client:idle />
+              <UserMenu client:idle />
+            </header>
+            <main id="main" class="panel-main min-w-0 flex-1 p-4 sm:p-6">
+              <div class="mx-auto w-full max-w-[90rem]">
+                <slot />
+              </div>
+            </main>
+          </div>
         </div>
         <script is:inline>
           (function () {
@@ -547,6 +566,7 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           import { setUnauthorizedHandler } from "@tracht-digital-solutions/tds-shared/api";
           import { onUnauthorized } from "../lib/auth";
           import { initNotificationFeed } from "../lib/notificationFeed";
+          import { initPreferences } from "../lib/preferences";
           import { FRONTEND_TARGET } from "../config/target";
 
           // Extension islands call the API through tds-shared's `apiFetch`,
@@ -559,6 +579,14 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           // One poller for every composed module. Not in `bare` mode: the
           // login/gate page has no session to poll with.
           initNotificationFeed({ target: FRONTEND_TARGET });
+
+          // Reconcile the theme with the user's SERVER-side preference and
+          // push later changes back. localStorage stays the pre-paint cache
+          // (the no-flash bootstrap in <head> reads it synchronously); this is
+          // what makes the choice follow the user to another device. Runs
+          // after the gate, and it is idempotent — a layout <script> executes
+          // per page, and a second listener would double every save.
+          initPreferences();
         </script>
       )
     }

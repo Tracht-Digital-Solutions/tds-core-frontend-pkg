@@ -56,7 +56,16 @@ for (const file of files) {
     if (el === "button") {
       // `.chip` is the library's own filter/tab control and carries its own
       // hover + focus treatment, so it is an accepted alternative to `.btn`.
-      if (!/\b(btn|chip)\b/.test(cls)) findings.push(`${where}  <button> needs "btn btn-*" (or "chip")`);
+      //
+      // `.tds-dropdown__trigger` / `__item` likewise: they are shared classes
+      // that carry their own geometry, hover AND focus-visible treatment, and
+      // the item is 44px at every pointer type. The rule is "must carry a
+      // shared class that provides geometry", not "must literally say btn" —
+      // forcing `.btn` onto a menu row would give it the pill radius and
+      // button padding and make the menu look like a stack of buttons.
+      if (!/\b(btn|chip|tds-dropdown__(trigger|item))\b/.test(cls)) {
+        findings.push(`${where}  <button> needs "btn btn-*" (or "chip")`);
+      }
     } else {
       const type = (tag.match(/type\s*=\s*"([^"]*)"/) ?? [])[1] ?? "text";
       if (BARE_TYPES.has(type)) continue;

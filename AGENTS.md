@@ -115,9 +115,10 @@ The shell renders:
 
 | Element | Class | Notes |
 |---|---|---|
-| mobile top bar (below `lg`) | `.lg:hidden` header | wordmark, `ThemeToggle`, drawer trigger |
+| mobile top bar (below `lg`) | `.lg:hidden` header | wordmark, `ThemeToggle`, compact `UserMenu`, drawer trigger |
+| **desktop top bar (`lg`+)** | `.panel-topbar` | `ThemeToggle` + `UserMenu`, right-aligned. Sits in a COLUMN wrapper with `<main>`, not beside the rail |
 | desktop rail (`lg`+) | `.portal-sidebar` | gradient dark panel in BOTH themes; re-maps `--color-ink/-muted/-line/-soft/-card` + `--nav-hue` *inside* the panel |
-| rail head / foot | `.sidebar-head` / `.sidebar-foot` | wordmark + collapse toggle; `ThemeToggle` + target label |
+| rail head / foot | `.sidebar-head` / `.sidebar-foot` | wordmark + collapse toggle; target label (the `ThemeToggle` moved to the top bar — two toggles would be two controls for one setting) |
 | mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | same surface + token remap as the rail |
 | nav row | `.nav-item` + `.nav-item__icon` / `__label` | icon/label grid; hue from the section's `--nav-hue` |
 | active nav | `.nav-item--active` + `aria-current="page"` | resolved from `Astro.url.pathname` |
@@ -476,6 +477,56 @@ line up to make that true, and each one looks like a gate while being none:
 `paths` block because the files sit outside the package directory. Run it after
 touching any island. It needs the full working root, so it is a local tool, not
 CI — and it is excluded from the published package.
+
+## Profile menu (`components/UserMenu.tsx`) + `/profil`
+
+The shell's identity control, top-right. Before it, the panel had **no desktop
+header at all**: `<main>` began straight at the page content, nothing anywhere
+said which account you were using, and `logout()` sat in `lib/auth.ts` imported
+by nothing.
+
+- **The menu renders NOTHING when `/me` fails.** The pre-paint gate already owns
+  "are you logged in"; a half-drawn header with an error in it would be worse
+  than no header, and this is reachable whenever the composed API is down.
+- **`fetchMe()` memoises for the page load.** The gate has usually just called
+  `/me`, and the menu, the profile page and (later) a company switcher would
+  each repeat it. A **failed** probe is not cached — a sticky `null` would keep
+  the menu empty for the rest of the page's life. `invalidateMe()` after any
+  write that changes the principal.
+- **Company NAMES come from the composed API** (`GET /me/companies`,
+  tds-ext-customers), because auth-api only ever holds ids and
+  `GET /admin/customers` is admin-only. An admin has no memberships, so the
+  menu shows the product ("Management" / "Kundenportal") instead — and skips
+  the request entirely.
+- **`/profil` is injected but deliberately absent from the nav.** It is personal
+  settings, not a section of the product; the menu is the way in.
+
+> **Two latent bugs surfaced when this got its first caller**, both invisible
+> while `lib/auth.ts` had none: `Me` declared `id: number` when `/me` returns
+> **`userId`**, and `logout()` sent **POST** to a route auth-api registers as
+> `DELETE`. The second is the nastier one — a 405 is a *resolved* fetch, so the
+> `catch` never saw it; the hint was cleared and the redirect happened, so it
+> looked like it worked, while the session stayed alive and the
+> `Domain=.tracht-digital.de` cookie signed the user straight back in.
+
+### Theme is per USER now, not per browser
+
+`lib/preferences.ts` reconciles `localStorage` with `/me/preferences`.
+localStorage stays — it is the pre-paint cache the no-flash bootstrap reads
+synchronously in `<head>` — and the server is the copy that follows the choice
+to another device. Three things to keep intact:
+
+- **Apply a loaded value with `{ announce: false }`.** `applyThemePreference`
+  raises `tds:theme-change`, and the listener that persists it would otherwise
+  echo the value straight back as a save.
+- **`initPreferences()` is idempotent.** A layout `<script>` runs on every page;
+  a second listener doubles every save. (Its test had to unregister listeners
+  per case: jsdom's `window` is shared for a whole file, so a leaked listener
+  from an earlier test made the guard look broken.)
+- **A failed load is silent, a failed save is a toast.** The frontend service's
+  database is still an open go-live step; a load-failure toast would fire on
+  every page and teach everyone to ignore the box that matters — the same
+  reasoning as the dashboard layout's silent `GET` below.
 
 ## Per-user dashboard layout
 

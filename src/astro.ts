@@ -26,6 +26,9 @@ const PKG = "@tracht-digital-solutions/tds-core-frontend";
 const BASE_ROUTES: ReadonlyArray<{ pattern: string; entrypoint: string }> = [
   { pattern: "/", entrypoint: `${PKG}/src/pages/index.astro` },
   { pattern: "/users", entrypoint: `${PKG}/src/pages/users.astro` },
+  // Reached from the shell's profile menu, deliberately NOT from the nav: it
+  // is personal settings, not a section of the product.
+  { pattern: "/profil", entrypoint: `${PKG}/src/pages/profil.astro` },
   { pattern: "/module", entrypoint: `${PKG}/src/pages/module.astro` },
   { pattern: "/einstellungen", entrypoint: `${PKG}/src/pages/einstellungen.astro` },
   { pattern: "/wiki", entrypoint: `${PKG}/src/pages/wiki.astro` },

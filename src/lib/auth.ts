@@ -63,22 +63,80 @@ export function hasAuthedHint(): boolean {
   }
 }
 
-/** The authenticated principal, as returned by tds-auth-api GET /me. */
-export interface Me {
-  id: number;
-  email: string;
-  name?: string;
-  isAdmin?: boolean;
+/** One company the principal belongs to, as `/me` reports it. */
+export interface MeCompany {
+  customerId: number;
   permissions?: string[];
 }
 
+/**
+ * The authenticated principal, as returned by tds-auth-api `GET /me`.
+ *
+ * The id field is **`userId`**, not `id`. This interface declared `id: number`
+ * for as long as it existed and nothing ever noticed, because `fetchMe` had no
+ * call sites at all — the first consumer (the profile menu) would have rendered
+ * `undefined`.
+ */
+export interface Me {
+  userId: number;
+  email: string;
+  name?: string | null;
+  /** The short name the user picked for themselves; may be null. */
+  displayName?: string | null;
+  /** Server-resolved `displayName ?? name ?? email` — prefer this for display. */
+  label?: string;
+  avatarUrl?: string | null;
+  /** Whether an uploaded picture exists (an `avatarUrl` can be a stale legacy URL). */
+  hasAvatar?: boolean;
+  isAdmin?: boolean;
+  isSupportAgent?: boolean;
+  isBlogAuthor?: boolean;
+  permissions?: string[];
+  companies?: MeCompany[];
+  customerId?: number | null;
+  mustChangePassword?: boolean;
+  /** Unix seconds, from the verified token's `exp`. */
+  expiresAt?: number | null;
+}
+
+/**
+ * In-flight/settled `/me` for this page load.
+ *
+ * The shell can ask for the principal from several places on one page (the
+ * profile menu, the profile page, a future company switcher) and the pre-paint
+ * gate has usually just called `/me` itself. Without this each of them is a
+ * separate cross-origin round-trip on every navigation. Deliberately a plain
+ * module-level promise rather than `sessionStorage`: identity is exactly the
+ * thing that must not be served stale after a logout in another tab, and a
+ * page load is the right lifetime.
+ */
+let mePromise: Promise<Me | null> | null = null;
+
 export async function fetchMe(): Promise<Me | null> {
-  try {
-    const res = await fetch(`${AUTH_API_URL}/me`, { credentials: "include" });
-    return res.ok ? ((await res.json()) as Me) : null;
-  } catch {
-    return null;
+  if (mePromise === null) {
+    mePromise = (async () => {
+      try {
+        const res = await fetch(`${AUTH_API_URL}/me`, { credentials: "include" });
+        return res.ok ? ((await res.json()) as Me) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    // A failed probe must not be cached: the panel calls this again after a
+    // refresh/SSO recovery, and a sticky null would keep the menu empty for
+    // the rest of the page's life.
+    mePromise = mePromise.then((me) => {
+      if (me === null) mePromise = null;
+      return me;
+    });
   }
+  return mePromise;
+}
+
+/** Drop the cached principal — call after any write that changes it. */
+export function invalidateMe(): void {
+  mePromise = null;
 }
 
 let redirecting = false;
@@ -165,12 +223,27 @@ export async function frontendFetch(input: string | URL, init: RequestInit = {})
   return res;
 }
 
+/**
+ * End the session everywhere and return to the central login.
+ *
+ * **The verb is DELETE.** tds-auth-api registers `DELETE /logout`
+ * (`$app->delete('/logout', …)`), and this used to send `POST` — a 405 that
+ * the `catch` could not even see, because a 405 is a resolved fetch, not a
+ * thrown one. The local hint was cleared and the user was redirected, so it
+ * *looked* like it worked; the session row was never revoked and the
+ * `Domain=.tracht-digital.de` cookie was never expired, so returning to the
+ * panel signed them straight back in. Nobody caught it because `logout()` had
+ * no call sites until the profile menu.
+ */
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${AUTH_API_URL}/logout`, { method: "POST", credentials: "include" });
+    await fetch(`${AUTH_API_URL}/logout`, { method: "DELETE", credentials: "include" });
   } catch {
-    /* best effort */
+    /* Network failure — still clear locally and bounce; the server-side
+       session outlives it, but leaving the user on an authed-looking panel
+       would be worse. */
   }
+  invalidateMe();
   clearAuthed();
   location.replace(LOGIN_URL);
 }

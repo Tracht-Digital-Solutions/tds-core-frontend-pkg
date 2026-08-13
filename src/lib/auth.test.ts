@@ -321,13 +321,22 @@ describe("frontendFetch — the 401 backstop", () => {
 });
 
 describe("logout", () => {
-  it("posts to the API, clears the hint and leaves for the login site", async () => {
+  it("sends DELETE, clears the hint and leaves for the login site", async () => {
+    // The verb is load-bearing: tds-auth-api registers `DELETE /logout`.
+    // This sent POST for as long as it existed, which is a 405 — and a 405 is
+    // a RESOLVED fetch, not a thrown one, so the `catch` never saw it. The
+    // hint was cleared and the redirect happened, so it looked like it
+    // worked, while the session row stayed alive and the
+    // `Domain=.tracht-digital.de` cookie was never expired: returning to the
+    // panel signed the user straight back in. Nothing caught it because
+    // `logout()` had no call sites until the profile menu.
     const { setAuthed, logout, hasAuthedHint } = await loadAuth();
     setAuthed();
     await logout();
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${AUTH}/logout`);
-    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).method).toBe("POST");
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).method).toBe("DELETE");
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).credentials).toBe("include");
     expect(hasAuthedHint()).toBe(false);
     expect(replace).toHaveBeenCalledWith(LOGIN);
   });
