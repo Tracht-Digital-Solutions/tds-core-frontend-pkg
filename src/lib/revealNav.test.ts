@@ -81,6 +81,28 @@ describe("revealNav", () => {
     expect((document.getElementById("plain") as HTMLElement).hidden).toBe(false);
   });
 
+  it("unhides a platform-admin row only for an admin", async () => {
+    // /users used to hang in the nav of BOTH products unconditionally, so a
+    // portal user was invited to a screen whose first call 403s.
+    document.body.innerHTML = `<a id="users" data-reveal-for="platform-admin" hidden>Benutzer</a>`;
+    await run({ userId: 1, email: "a@b.test", isAdmin: false, companies: [{ companyId: 3, isCompanyAdmin: true }] });
+    expect(hidden("users")).toBe(true);
+
+    markup();
+    document.body.insertAdjacentHTML("beforeend", `<a id="users" data-reveal-for="platform-admin" hidden>Benutzer</a>`);
+    await run({ userId: 1, email: "a@b.test", isAdmin: true, companies: [] });
+    expect(hidden("users")).toBe(false);
+    // An admin has no memberships, so the company row stays hidden — the two
+    // conditions are independent.
+    expect(hidden("rail")).toBe(true);
+  });
+
+  it("ignores an unknown condition rather than revealing the row", async () => {
+    document.body.innerHTML = `<a id="odd" data-reveal-for="not-a-thing" hidden>?</a>`;
+    await run({ userId: 1, email: "a@b.test", isAdmin: true, companies: [] });
+    expect(hidden("odd")).toBe(true);
+  });
+
   it("costs no request when the page has no such row", async () => {
     document.body.innerHTML = "<a id=plain>Dashboard</a>";
     vi.resetModules();

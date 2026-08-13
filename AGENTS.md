@@ -682,6 +682,11 @@ floating support widget — **one source, two surfaces**.
 
 ## Access control (`/users` → `AccessAdmin.tsx`)
 
+**The nav row is platform-admin only** (`revealFor: "platform-admin"`, same
+mechanism as `/firma`). It used to hang in the nav of *both* products with no
+condition at all, so every portal user was invited to a screen whose very first
+call — `GET /admin/users` — answers 403 for them.
+
 One route, three tabs — **Benutzer | Gruppen | Firmen-Kontingente**. Tabs rather
 than three `BASE_ROUTES` entries because groups and quotas are edited a couple of
 times a year and only make sense next to the users they apply to; splitting them

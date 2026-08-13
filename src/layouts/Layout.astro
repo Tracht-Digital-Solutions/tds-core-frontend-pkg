@@ -61,7 +61,7 @@ interface NavInput {
   /** Absolute link to another property — opens in a new tab (see below). */
   external?: boolean | undefined;
   /** Render hidden and unhide at runtime — see NavList and `revealNav`. */
-  revealFor?: "company-admin" | undefined;
+  revealFor?: "company-admin" | "platform-admin" | undefined;
 }
 
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
@@ -71,7 +71,10 @@ interface NavInput {
 const BASE_GROUP = "verwaltung";
 const baseNav: NavInput[] = [
   { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
-  { href: "/users", label: "Benutzer", id: "users", icon: "users", order: 1 },
+  // Platform-admin only, and revealed the same way `/firma` is. It used to hang
+  // in the nav of BOTH products unconditionally, so every portal user was
+  // invited to a screen whose very first call answers 403.
+  { href: "/users", label: "Benutzer", id: "users", icon: "users", order: 1, revealFor: "platform-admin" },
   // The company admin's own user management. Rendered hidden and revealed by
   // the shell script once /me confirms the role — the nav is built at BUILD
   // time and cannot know it. In BOTH products: a company admin signs in to the

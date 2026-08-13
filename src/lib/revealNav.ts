@@ -12,6 +12,10 @@
  * OFFERING a page that would answer 403 — a nav that promises something the
  * server refuses is worse than one that stays quiet.
  *
+ * `/users` is the second case and predates this file: it hung in the nav of
+ * BOTH products with no condition at all, so every portal user was invited to
+ * a screen whose first call (`/admin/users`) answers 403 for them.
+ *
  * Runs off the memoised `fetchMe()`, so it costs no extra request: the profile
  * menu and the pre-paint gate have already asked.
  */
@@ -25,13 +29,15 @@ export async function revealNav(): Promise<void> {
   const me = await fetchMe();
   if (me === null) return;
 
-  const administersACompany = (me.companies ?? []).some((c) => c.isCompanyAdmin);
+  const holds: Record<string, boolean> = {
+    "company-admin": (me.companies ?? []).some((c) => c.isCompanyAdmin),
+    "platform-admin": me.isAdmin === true,
+  };
 
   for (const row of rows) {
     // Both the rail and the mobile drawer render the same model, so this
     // deliberately walks ALL matches rather than the first.
-    if (row.dataset.revealFor === "company-admin" && administersACompany) {
-      row.hidden = false;
-    }
+    const condition = row.dataset.revealFor ?? "";
+    if (holds[condition] === true) row.hidden = false;
   }
 }
