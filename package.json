@@ -1,6 +1,6 @@
 {
   "name": "@tracht-digital-solutions/tds-core-frontend",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "Base panel host for the TDS panel platform. Ships the shell (Layout, auth gate), base pages (dashboard, login, users, settings, wiki) + the coreFrontendBase Astro integration. Consumed by the product repos (tds-admin-panel / tds-customer-panel), each of which composes it with its own extension set + deploy pipeline.",
   "license": "UNLICENSED",
   "private": false,
