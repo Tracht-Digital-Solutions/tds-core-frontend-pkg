@@ -96,6 +96,11 @@ function moduleName(id: string, modules: ModuleEntry[]): string {
   return modules.find((m) => m.id === id)?.name ?? id;
 }
 
+/** German plural. A composed build has one module often enough to notice. */
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 /** Stable, linkable anchor for one route. */
 function anchorFor(route: WikiRoute): string {
   return `route-${route.method}-${route.pattern}`
@@ -207,8 +212,8 @@ export default function ApiReference({ modules: inventory }: Props) {
 
       <p className="text-sm opacity-70 my-3">
         {shown === data.stats.routes
-          ? `${data.stats.routes} Routen in ${data.stats.modules} Modulen`
-          : `${shown} von ${data.stats.routes} Routen`}
+          ? `${plural(data.stats.routes, "Route", "Routen")} in ${plural(data.stats.modules, "Modul", "Modulen")}`
+          : `${shown} von ${plural(data.stats.routes, "Route", "Routen")}`}
         {data.stats.documented < data.stats.routes && (
           <> · {data.stats.routes - data.stats.documented} ohne Beschreibung</>
         )}

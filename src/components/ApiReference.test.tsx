@@ -93,7 +93,7 @@ afterEach(() => {
 
 const show = async () => {
   render(<ApiReference modules={inventory} />);
-  await screen.findByText(/Routen in/);
+  await screen.findByText(/Route(n)? in/);
 };
 
 describe("grouping", () => {
@@ -164,6 +164,18 @@ describe("undocumented routes", () => {
   it("counts them in the header", async () => {
     await show();
     expect(screen.getByText(/1 ohne Beschreibung/)).toBeTruthy();
+  });
+
+  it("gets the German plural right for a single route or module", async () => {
+    // "1 Routen in 1 Modulen" is the kind of wart that makes a reference look
+    // unmaintained, and a composed build has one module often enough to see it.
+    body = {
+      ...structuredClone(payload),
+      modules: [structuredClone(payload.modules[1])],
+      stats: { routes: 1, documented: 1, modules: 1, orphan_docs: [] },
+    };
+    await show();
+    expect(screen.getByText("1 Route in 1 Modul")).toBeTruthy();
   });
 });
 
