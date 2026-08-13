@@ -29,6 +29,14 @@ const SKIP = new Set(["node_modules", "dist", ".git", ".claude", "vendor"]);
 /** Input types that legitimately carry no `field` class. */
 const BARE_TYPES = new Set(["checkbox", "radio", "file", "hidden", "submit", "button", "range"]);
 
+/**
+ * The `.btn-*` colour variants tds-shared actually defines
+ * (`styles/primitives.css`). Hard-coded rather than parsed out of
+ * node_modules: this script has to run as one dependency-free CI step, and the
+ * list changes about once a year. If tds-shared gains a variant, add it here.
+ */
+const BTN_VARIANTS = new Set(["primary", "accent", "ghost", "danger"]);
+
 const files = [];
 (function walk(dir) {
   for (const entry of readdirSync(dir)) {
@@ -65,6 +73,17 @@ for (const file of files) {
       // button padding and make the menu look like a stack of buttons.
       if (!/\b(btn|chip|tds-dropdown__(trigger|item))\b/.test(cls)) {
         findings.push(`${where}  <button> needs "btn btn-*" (or "chip")`);
+      }
+      // …and the VARIANT has to exist. `btn btn-secondary` passed the check
+      // above while matching no rule at all, so the control rendered with
+      // geometry and a touch target but no colour — invisible against the
+      // card it sat on. Same failure shape as a bare button, one step later.
+      for (const variant of cls.matchAll(/\bbtn-([a-z-]+)\b/g)) {
+        if (!BTN_VARIANTS.has(variant[1])) {
+          findings.push(
+            `${where}  "btn-${variant[1]}" is not a tds-shared variant (${[...BTN_VARIANTS].join(", ")})`,
+          );
+        }
       }
     } else {
       const type = (tag.match(/type\s*=\s*"([^"]*)"/) ?? [])[1] ?? "text";
