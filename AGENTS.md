@@ -392,6 +392,37 @@ The nav entry is admin-target-only; the route is injected into both products
 because there is one route list, and every `/admin/modules*` route is gated on
 `isAdmin` server-side regardless of who finds the URL.
 
+## E-Mail (SMTP) — a base settings section
+
+`components/MailSettings.tsx`, rendered by `pages/einstellungen.astro` for the
+**admin product only** (`FRONTEND_TARGET === "admin"`; the API gates its routes
+on `isAdmin` either way). It configures the one transport every composed module
+sends through — until 0.22.4 that transport was `MAIL_DSN`-only, i.e. editable
+exclusively by hand on the production host, so every notification toggle in the
+panel switched on a mailer nobody could set up from the panel.
+
+Three things about it are deliberate:
+
+- **It reads two endpoints.** `GET /admin/settings/mail` is what is *stored*
+  (and what this form edits); `GET /admin/mail` is what actually *sends*,
+  including a transport that comes from the host's `.env` (`source: db|env|none`).
+  With only the first, a host that mails perfectly well would show an empty form
+  and the first edit would overwrite a working transport — so the `env` case
+  renders its own explanatory note rather than looking like "nicht konfiguriert".
+- **A blank password field is sent as `""` on purpose.** The API reads an empty
+  secret as "keep existing", which is what keeps the stored password from ever
+  round-tripping through the browser. Sending anything else — including omitting
+  the key — would either wipe it or need the raw secret in the page.
+- **The test mail's failure renders IN FLOW, its success as a toast.** The SMTP
+  server's own reply ("535 … Authentication credentials invalid") is diagnostic
+  text to read, and it is the only thing separating a wrong password from a
+  blocked port; a toast would take it away mid-sentence. Success is a transient
+  outcome and belongs in a toast. The button is disabled while nothing is
+  configured — see the three-feedback-primitives rule in the root CLAUDE.md.
+
+The API side (namespace `mail`, precedence, redaction) is documented in
+`tds-core-frontend-api`'s AGENTS.md.
+
 ## Virtual modules (renamed)
 
 The shell imports three build-time virtual modules from `frontend-contract`:

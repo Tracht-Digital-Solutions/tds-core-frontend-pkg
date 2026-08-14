@@ -3,14 +3,16 @@
 // by the enabled extensions (via virtual:frontend-settings), the same way the
 // Dashboard hosts widgets. Base-service settings (once ported) render above.
 import Layout from "../layouts/Layout.astro";
+import MailSettings from "../components/MailSettings.tsx";
 import ModuleDeploySettings from "../components/ModuleDeploySettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
 
 // Base-service settings render above the extension sections. Module & Deployment
-// is admin-product-only: the customer portal is not the place to start a
-// production pipeline (the API gates it on `isAdmin` either way).
-const showDeploySettings = FRONTEND_TARGET === "admin";
+// and E-Mail (SMTP) are admin-product-only: the customer portal is neither the
+// place to start a production pipeline nor to configure the platform's outgoing
+// mail (the API gates both on `isAdmin` either way).
+const showAdminSettings = FRONTEND_TARGET === "admin";
 ---
 
 <Layout title="Einstellungen">
@@ -21,12 +23,20 @@ const showDeploySettings = FRONTEND_TARGET === "admin";
         <h1 class="tds-page__title">Einstellungen</h1>
       </div>
     </div>
-    {settings.length === 0 && !showDeploySettings ? (
+    {settings.length === 0 && !showAdminSettings ? (
       <p class="tds-empty">Keine Einstellungen verfügbar.</p>
     ) : null}
     <div class="settings-list flex flex-col gap-6">
       {
-        showDeploySettings ? (
+        showAdminSettings ? (
+          <section class="tds-settings-section" data-settings="mail">
+            <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
+            <MailSettings client:load />
+          </section>
+        ) : null
+      }
+      {
+        showAdminSettings ? (
           <section class="tds-settings-section" data-settings="modules">
             <h2 class="tds-settings-section__title">Module &amp; Deployment</h2>
             <ModuleDeploySettings client:load />
