@@ -834,11 +834,15 @@ Composition proven end-to-end (routes + nav + hydrated widgets + settings), auth
 gate + chrome + tds-shared-pkg wired, Wiki / users (incl. fine-grained permission +
 membership editing) / settings pages built, per-user dashboard layout done, both
 product targets (admin/customer) build + deploy. Groups, per-company quotas, the
-company admin surface (`/firma`) and the company switcher are in — they need
-tds-auth-api **0.6.0** live (i.e. a `tds-gateway-api` release), and the first
-company admin per company must be promoted by hand once (see that repo's
-`RUNBOOK.md`) or the whole feature looks broken. Next: move the dashboard-layout
-DDL into a base migration once core-frontend-api gains a migrator; drop the
-`customers`/`customerId`/`X-Act-As-Customer` aliases in the follow-up release;
-optionally port the author-profile (avatar/bio) editor if the blog byline is
-managed from here.
+company admin surface (`/firma`), the company switcher, the tri-state permission
+matrix and the delegation grant are in and live against tds-auth-api **0.7.0**.
+
+Two operational steps per company, in this order, or the delegated surface does
+nothing and says nothing: switch **Firmenadmins zulassen** on in
+*Firmen-Kontingente*, then promote the first company admin. See
+`tds-auth-api/RUNBOOK.md`.
+
+Next: move the dashboard-layout DDL into a base migration once core-frontend-api
+gains a migrator; drop the `customers`/`customerId`/`X-Act-As-Customer` aliases
+in the follow-up release; optionally port the author-profile (avatar/bio) editor
+if the blog byline is managed from here.
