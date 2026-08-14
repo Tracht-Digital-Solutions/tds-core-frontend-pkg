@@ -3,7 +3,8 @@
 The **base frontend host**, published as a package
 (`@tracht-digital-solutions/tds-core-frontend`). It ships the shell (chrome,
 pre-paint auth gate, nav), the **base pages** (Dashboard/widget host, user
-management, Module = Inventar + Updates, Einstellungen, Wiki = API-Referenz im
+management, Module = Inventar + Updates, Einstellungen inkl. **E-Mail (SMTP)**
+im Admin-Build, Wiki = API-Referenz im
 Admin-Build / Hilfe + Handbücher im Portal)
 and the **`coreFrontendBase` Astro integration**
 — consumed by the **product repos** (`tds-admin-frontend` / `tds-customer-frontend`),
