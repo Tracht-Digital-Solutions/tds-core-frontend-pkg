@@ -765,12 +765,17 @@ unhidden by `lib/revealNav.ts` against the memoised `/me`. **Hiding is not a
 permission check** — every `/company/*` call is gated by auth-api's
 `CompanyAdminMiddleware`; this only avoids offering a page that would 403.
 
-The row's condition is `company-or-platform-admin`. A platform admin belongs to
-no company, so the company-admin condition never holds for them — but they may
-manage every company from this screen, which offers them a **company picker**
-built from `fetchCompanies()` instead of their (empty) memberships. That is
-"als Universaladmin alle Rechte auch intern dieser Firma bearbeiten": the
-internal view exists nowhere else.
+The row's condition is `company-or-platform-admin`, and it has **two** parts:
+the principal must administer a company (or be a platform admin) **and belong to
+at least one**. The membership half is what the label promises — someone in no
+company has no *meine* Firma, so the row would be pointing them at somebody
+else's. **That binds the platform admin too** (changed 2026-08-14; the row used
+to appear for them precisely because they belong to nowhere): they manage
+companies from the Firmen directory, and `/firma` stays reachable by URL, where
+it still offers them the **company picker** built from `fetchCompanies()`
+instead of their (empty) memberships. Hiding the row is not a permission check,
+so nothing about "als Universaladmin alle Rechte auch intern dieser Firma
+bearbeiten" is lost — only the nav entry that misnamed it.
 
 `isCompanyAdmin` on `/me` arrives already folded against the company's
 delegation grant (auth-api resolves it), so a promotion into a company that was

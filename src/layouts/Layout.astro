@@ -79,6 +79,10 @@ const baseNav: NavInput[] = [
   // the shell script once /me confirms the role — the nav is built at BUILD
   // time and cannot know it. In BOTH products: a company admin signs in to the
   // portal, and the Firmen extension is admin-product only.
+  //
+  // The condition also requires a MEMBERSHIP (see revealNav): someone in no
+  // company has no "meine Firma", so the row stays hidden for them — platform
+  // admins included, who manage companies from the Firmen directory instead.
   {
     href: "/firma",
     label: "Meine Firma",

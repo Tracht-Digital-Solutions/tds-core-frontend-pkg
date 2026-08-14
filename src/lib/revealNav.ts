@@ -29,19 +29,25 @@ export async function revealNav(): Promise<void> {
   const me = await fetchMe();
   if (me === null) return;
 
+  const companies = me.companies ?? [];
+
   const holds: Record<string, boolean> = {
     // `isCompanyAdmin` on /me is already folded against the company's
     // delegation grant, so a promotion into a company that was never switched
     // on does not light this up — which is the whole point of resolving it
     // server-side rather than reading the stored flag.
-    "company-admin": (me.companies ?? []).some((c) => c.isCompanyAdmin),
+    "company-admin": companies.some((c) => c.isCompanyAdmin),
     "platform-admin": me.isAdmin === true,
-    // `/firma` is the company-INTERNAL view. A platform admin belongs to no
-    // company, so the first condition never holds for them — but they may
-    // manage every company from that screen (it offers them a picker), and it
-    // is the only place the internal view exists.
+    // `/firma` is the company-INTERNAL view, so it needs a company: someone who
+    // belongs to none has no "meine Firma" and the row is offering them a page
+    // about nobody. That MEMBERSHIP requirement binds the platform admin too —
+    // the screen still offers them a picker over every company, but a platform
+    // admin without a membership manages companies from the Firmen directory,
+    // and a nav row named "Meine Firma" pointing at someone else's is worse
+    // than no row. Reachable by URL either way; hiding is not a permission
+    // check.
     "company-or-platform-admin":
-      me.isAdmin === true || (me.companies ?? []).some((c) => c.isCompanyAdmin),
+      companies.length > 0 && (me.isAdmin === true || companies.some((c) => c.isCompanyAdmin)),
   };
 
   for (const row of rows) {

@@ -103,11 +103,25 @@ describe("revealNav", () => {
     expect(hidden("odd")).toBe(true);
   });
 
-  it("reveals /firma for a platform admin, who belongs to no company", async () => {
-    // They administer every company from that screen (it offers them a
-    // picker), and it is the only place the company-internal view exists.
+  it("keeps /firma hidden for anyone who belongs to no company — platform admin included", async () => {
+    // "Meine Firma" is the company-INTERNAL view. Without a membership there is
+    // no "meine Firma" to show, and the row would name someone else's company.
     document.body.innerHTML = `<a id="firma" data-reveal-for="company-or-platform-admin" hidden>Meine Firma</a>`;
     await run({ userId: 1, email: "a@b.test", isAdmin: true, companies: [] });
+
+    expect(hidden("firma")).toBe(true);
+  });
+
+  it("reveals /firma for a platform admin who does belong to one", async () => {
+    // The membership is what the row promises; the admin flag is what lets them
+    // edit it (and switch to any other company from the picker).
+    document.body.innerHTML = `<a id="firma" data-reveal-for="company-or-platform-admin" hidden>Meine Firma</a>`;
+    await run({
+      userId: 1,
+      email: "a@b.test",
+      isAdmin: true,
+      companies: [{ companyId: 3, isCompanyAdmin: false }],
+    });
 
     expect(hidden("firma")).toBe(false);
   });

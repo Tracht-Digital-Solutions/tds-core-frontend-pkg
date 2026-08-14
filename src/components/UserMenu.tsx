@@ -308,7 +308,7 @@ export default function UserMenu({ compact = false }: UserMenuProps) {
           <span className="tds-dropdown__icon">
             <Glyph>{ICON.user}</Glyph>
           </span>
-          Profil &amp; Einstellungen
+          Profileinstellungen
         </a>
 
         {/* The login UI lives OFF this host (auth.tracht-digital.de), so this
