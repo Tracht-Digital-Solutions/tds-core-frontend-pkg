@@ -8,11 +8,13 @@ import { ConfirmDialog, FormAlert, Spinner, toast } from "@tracht-digital-soluti
 import { AUTH_API_URL, frontendFetch } from "../lib/auth";
 import { fetchCompanies, type Company } from "../lib/companies";
 import {
+  fetchCompanyPolicy,
   fetchGroups,
   fetchPermissionCatalog,
   type Group,
   type PermissionDef,
 } from "../lib/companyAdmin";
+import PermissionMatrix from "./PermissionMatrix";
 
 interface Membership {
   /** The company. Named `customerId` on the wire for one more release. */
@@ -25,6 +27,8 @@ interface Membership {
   groupIds?: number[];
   /** The most this ONE person may hold; null = inherit the company policy. */
   permissionCeiling?: string[] | null;
+  /** Withheld from this person even where an assigned group grants it. */
+  permissionDenies?: string[];
 }
 
 interface AdminUser {
@@ -281,97 +285,6 @@ export default function UsersAdmin() {
   );
 }
 
-/** Checkbox grid + role presets for picking a company's portal permissions. */
-/**
- * The per-membership permission checkboxes.
- *
- * The options come from the COMPOSED catalog (`GET /admin/permissions`, every
- * module's contribution), falling back to the shared portal seed set when that
- * service is unreachable — the same never-throws contract `fetchCompanies` has.
- * Offering only the nine seed keys is what the whole Phase 2 permission change
- * was about: the panel composes thirteen extensions, and their rights were
- * ungrantable through this screen.
- *
- * A key that is STORED but not in the catalog still renders, as a warning chip.
- * Loosening the backend's validation is one-way, and an admin has to be able to
- * see — and remove — a right nothing recognises any more.
- */
-function PermissionPicker({
-  value,
-  catalog,
-  onChange,
-}: {
-  value: string[];
-  catalog: PermissionDef[];
-  onChange: (next: string[]) => void;
-}) {
-  const toggle = (key: string) =>
-    onChange(value.includes(key) ? value.filter((p) => p !== key) : [...value, key]);
-
-  const options: PermissionDef[] =
-    catalog.length > 0
-      ? catalog
-      : PORTAL_PERMISSIONS.map((id) => ({ id, label: PORTAL_PERMISSION_LABELS[id] }));
-
-  const known = new Set(options.map((o) => o.id));
-  const unknown = value.filter((key) => !known.has(key));
-
-  // Group headings, in first-appearance order, so thirteen modules' rights are
-  // navigable instead of one flat wall of checkboxes.
-  const byGroup = new Map<string, PermissionDef[]>();
-  for (const option of options) {
-    const key = option.group ?? "Allgemein";
-    byGroup.set(key, [...(byGroup.get(key) ?? []), option]);
-  }
-
-  return (
-    <div>
-      {/* The four role-preset buttons that used to sit here are real GROUPS
-          now (seeded as system groups above), so what is left is the one thing
-          a preset could not do: clear the DIRECT grants. It does not touch the
-          group boxes — group rights are added by the server. */}
-      <div className="tds-toolbar mb-3">
-        <button type="button" className="btn btn-ghost text-xs" onClick={() => onChange([])}>
-          Einzelrechte zurücksetzen
-        </button>
-      </div>
-      {unknown.length > 0 && (
-        <p className="mb-2 flex flex-wrap gap-1 text-xs">
-          <span className="opacity-70">Unbekannte gespeicherte Rechte:</span>
-          {unknown.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className="chip chip--warning"
-              title="Kein Modul kennt dieses Recht mehr. Klicken zum Entfernen."
-              onClick={() => toggle(key)}
-            >
-              {key} ×
-            </button>
-          ))}
-        </p>
-      )}
-      {[...byGroup.entries()].map(([group, entries]) => (
-        <div key={group} className="mb-3">
-          <p className="text-xs uppercase opacity-60 mb-1">{group}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {entries.map((option) => (
-              <label key={option.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={value.includes(option.id)}
-                  onChange={() => toggle(option.id)}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function UserForm({
   companies,
   catalog,
@@ -390,6 +303,13 @@ function UserForm({
   onCancel?: () => void;
 }) {
   const editing = initial !== undefined;
+  /**
+   * `companyId -> may it have company admins`, for the companies this form
+   * touches. Loaded per company rather than up front: the list screen shows
+   * every user and would otherwise fetch a policy for every company on a page
+   * where nobody is editing anything.
+   */
+  const [delegation, setDelegation] = useState<Map<number, boolean>>(new Map());
   const [email, setEmail] = useState(initial?.email ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [isAdmin, setIsAdmin] = useState(initial?.isAdmin ?? false);
@@ -403,6 +323,33 @@ function UserForm({
 
   const usedCompanyIds = new Set(memberships.map((m) => m.customerId));
   const availableCompanies = companies.filter((c) => !usedCompanyIds.has(c.id));
+
+  // Fetch the delegation grant for any company this form has not asked about
+  // yet. Best-effort like every other call here: an unreachable auth-api
+  // leaves the checkbox enabled and the backend does the refusing.
+  useEffect(() => {
+    const unknown = [...usedCompanyIds].filter((id) => !delegation.has(id));
+    if (unknown.length === 0) return;
+    let cancelled = false;
+
+    void (async () => {
+      const answers = await Promise.all(
+        unknown.map(async (id) => [id, (await fetchCompanyPolicy(id)).data?.policy] as const),
+      );
+      if (cancelled) return;
+      setDelegation((current) => {
+        const next = new Map(current);
+        for (const [id, policy] of answers) {
+          if (policy !== undefined) next.set(id, policy.allowCompanyAdmins);
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [memberships, delegation]);
 
   const addMembership = () => {
     const next = availableCompanies[0];
@@ -528,13 +475,18 @@ function UserForm({
                 <input
                   type="checkbox"
                   checked={m.isCompanyAdmin ?? false}
+                  // Unknown (policy still loading) counts as allowed: the
+                  // backend refuses with a named 422 either way, and disabling
+                  // a control on a pending fetch reads as "not permitted".
+                  disabled={delegation.get(m.customerId) === false}
                   onChange={(e) => updateMembership(i, { isCompanyAdmin: e.target.checked })}
                 />
                 <span className="flex flex-col">
                   <span className="text-sm">Firmenadmin</span>
                   <span className="text-xs opacity-70">
-                    Darf die Benutzer DIESER Firma selbst verwalten (Seite „Meine Firma“) —
-                    begrenzt durch die Rechte, die der Firma freigegeben sind.
+                    {delegation.get(m.customerId) === false
+                      ? "Für diese Firma nicht freigeschaltet — Firmen-Kontingente → „Firmenadmins zulassen“."
+                      : "Darf die Benutzer DIESER Firma selbst verwalten (Seite „Meine Firma“) — begrenzt durch die Rechte, die der Firma freigegeben sind."}
                   </span>
                 </span>
               </label>
@@ -572,10 +524,22 @@ function UserForm({
                 </fieldset>
               ) : null}
 
-              <PermissionPicker
+              <PermissionMatrix
+                catalog={
+                  catalog.length > 0
+                    ? catalog
+                    : PORTAL_PERMISSIONS.map((id) => ({ id, label: PORTAL_PERMISSION_LABELS[id] }))
+                }
+                assignedGroups={groups.filter((g) => (m.groupIds ?? []).includes(g.id))}
                 value={m.permissions}
-                catalog={catalog}
-                onChange={(perms) => updateMembership(i, { permissions: perms })}
+                denies={m.permissionDenies ?? []}
+                ceiling={m.permissionCeiling ?? null}
+                onChange={(next) =>
+                  updateMembership(i, {
+                    permissions: next.permissions,
+                    permissionDenies: next.denies,
+                  })
+                }
               />
             </div>
           ))}

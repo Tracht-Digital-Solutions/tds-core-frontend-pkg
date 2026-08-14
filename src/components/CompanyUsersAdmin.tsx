@@ -7,7 +7,9 @@ import {
 } from "@tracht-digital-solutions/tds-shared/components";
 
 import { fetchMe, membershipIds, type Me } from "../lib/auth";
+import { fetchCompanies, type Company } from "../lib/companies";
 import { getActiveCompany } from "../lib/activeCompany";
+import PermissionMatrix from "./PermissionMatrix";
 import {
   createCompanyUser,
   describeFailure,
@@ -43,6 +45,8 @@ interface Draft {
   email: string;
   name: string;
   permissions: string[];
+  /** Withheld from this person even where an assigned group grants it. */
+  permissionDenies: string[];
   groupIds: number[];
   isCompanyAdmin: boolean;
   status: "active" | "disabled";
@@ -52,6 +56,7 @@ const emptyDraft = (): Draft => ({
   email: "",
   name: "",
   permissions: [],
+  permissionDenies: [],
   groupIds: [],
   isCompanyAdmin: false,
   status: "active",
@@ -61,6 +66,7 @@ const draftOf = (member: CompanyMember): Draft => ({
   email: member.email,
   name: member.name ?? "",
   permissions: [...member.permissions],
+  permissionDenies: [...(member.permissionDenies ?? [])],
   groupIds: [...member.groupIds],
   isCompanyAdmin: member.isCompanyAdmin,
   status: member.status,
@@ -69,6 +75,8 @@ const draftOf = (member: CompanyMember): Draft => ({
 export default function CompanyUsersAdmin() {
   const [me, setMe] = useState<Me | null>(null);
   const [companyId, setCompanyId] = useState<number | null>(null);
+  /** Non-empty only for a platform admin: every company, for the picker. */
+  const [directory, setDirectory] = useState<Company[]>([]);
   const [payload, setPayload] = useState<CompanyUsersPayload | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -94,6 +102,26 @@ export default function CompanyUsersAdmin() {
     void (async () => {
       const principal = await fetchMe();
       setMe(principal);
+
+      // A platform admin administers every company — CompanyAdminMiddleware
+      // lets them through this surface regardless of memberships (they have
+      // none) and regardless of whether the company's delegation is switched
+      // on, because that grant limits what a COMPANY may do on its own. So
+      // they get the directory and a picker; everyone else gets the companies
+      // they were made an admin of.
+      if (principal?.isAdmin) {
+        const { companies } = await fetchCompanies();
+        setDirectory(companies);
+        const stored = getActiveCompany();
+        const active =
+          stored !== null && companies.some((c) => c.id === stored)
+            ? stored
+            : (companies[0]?.id ?? null);
+        setCompanyId(active);
+        if (active !== null) await load(active);
+        setLoading(false);
+        return;
+      }
 
       // Only the companies this person ADMINISTERS are manageable here. A
       // plain membership would render a screen where every write 403s.
@@ -159,6 +187,7 @@ export default function CompanyUsersAdmin() {
         email: draft.email.trim(),
         name: draft.name.trim() || null,
         permissions: draft.permissions,
+        permissionDenies: draft.permissionDenies,
         groupIds: draft.groupIds,
         isCompanyAdmin: draft.isCompanyAdmin,
         status: draft.status,
@@ -216,7 +245,9 @@ export default function CompanyUsersAdmin() {
   if (companyId === null) {
     return (
       <p className="tds-alert" role="status">
-        Sie verwalten derzeit keine Firma. Ein Administrator kann Ihnen diese Rolle geben.
+        {me?.isAdmin
+          ? "Es sind keine Firmen angelegt."
+          : "Sie verwalten derzeit keine Firma. Ein Administrator kann Ihnen diese Rolle geben."}
       </p>
     );
   }
@@ -224,6 +255,32 @@ export default function CompanyUsersAdmin() {
   return (
     <div className="flex flex-col gap-4">
       {error && <FormAlert message={error} />}
+
+      {/* Platform admins only: they belong to no company, so without a picker
+          this page would have nothing to show — while the API happily lets
+          them manage any of them. Requirement: "als Universaladmin alle Rechte
+          auch intern dieser Firma bearbeiten". */}
+      {directory.length > 0 && (
+        <label className="block">
+          <span className="text-sm">Firma</span>
+          <select
+            className="field-boxed"
+            value={companyId}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setCompanyId(next);
+              setEditingId(null);
+              void load(next);
+            }}
+          >
+            {directory.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {notice && (
         <p className="tds-alert tds-alert--success" role="status">
           {notice}
@@ -321,30 +378,24 @@ export default function CompanyUsersAdmin() {
           )}
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-medium">Einzelne Rechte</legend>
-            {grantable.length === 0 ? (
-              <p className="tds-empty">Für diese Firma sind keine Rechte freigegeben.</p>
-            ) : (
-              <div className="tds-row" style={{ gap: "0.75rem", flexWrap: "wrap" }}>
-                {grantable.map((key) => (
-                  <label key={key} className="tds-row" style={{ gap: "0.375rem" }}>
-                    <input
-                      type="checkbox"
-                      checked={draft.permissions.includes(key)}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          permissions: e.target.checked
-                            ? [...draft.permissions, key]
-                            : draft.permissions.filter((p) => p !== key),
-                        })
-                      }
-                    />
-                    <span className="text-sm">{key}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+            <legend className="text-sm font-medium">Rechte</legend>
+            {/* The same control the platform editor uses. A right a group
+                already grants shows where it comes from and can be withheld
+                from this one person; anything else is a plain checkbox. */}
+            <PermissionMatrix
+              catalog={grantable.map((id) => ({ id, label: id }))}
+              assignedGroups={(payload?.groups ?? []).filter((g) => draft.groupIds.includes(g.id))}
+              value={draft.permissions}
+              denies={draft.permissionDenies}
+              ceiling={payload?.allowedPermissions ?? null}
+              onChange={(next) =>
+                setDraft({
+                  ...draft,
+                  permissions: next.permissions,
+                  permissionDenies: next.denies,
+                })
+              }
+            />
           </fieldset>
 
           <label className="tds-list__row" style={{ gap: "0.625rem" }}>

@@ -36,7 +36,7 @@ export interface NavItem {
    * A visitor who is not a company admin simply never sees it — and the route
    * itself says so too, rather than relying on the nav to hide it.
    */
-  revealFor?: "company-admin" | "platform-admin" | undefined;
+  revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
 }
 
 export interface NavSection {

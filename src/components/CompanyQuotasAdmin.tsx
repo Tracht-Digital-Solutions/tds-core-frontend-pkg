@@ -93,6 +93,7 @@ export default function CompanyQuotasAdmin() {
         maxUsers: policy.maxUsers,
         allowedPermissions: policy.allowedPermissions,
         allowCustomGroups: policy.allowCustomGroups,
+        allowCompanyAdmins: policy.allowCompanyAdmins,
       });
       if (!data) {
         toast.danger(await describeFailure(res, "Speichern fehlgeschlagen"));
@@ -196,6 +197,29 @@ export default function CompanyQuotasAdmin() {
               Darf eigene Gruppen anlegen
             </label>
           </div>
+
+          <label className="tds-list__row" style={{ gap: "0.625rem" }}>
+            <input
+              type="checkbox"
+              checked={policy.allowCompanyAdmins}
+              onChange={(e) => setPolicy({ ...policy, allowCompanyAdmins: e.target.checked })}
+            />
+            <span className="flex flex-col">
+              <span className="text-sm">Firmenadmins zulassen</span>
+              <span className="text-xs opacity-70">
+                Ohne diese Freigabe verwaltet niemand aus der Firma heraus Benutzer, Rechte oder
+                Gruppen — die Seite „Meine Firma“ bleibt unsichtbar. Sie selbst können die Firma
+                weiterhin vollständig verwalten.
+              </span>
+            </span>
+          </label>
+
+          {policy.allowCompanyAdmins && companyAdmins === 0 && (
+            <p className="tds-alert" role="status">
+              Freigegeben, aber noch niemand ernannt: unter <em>Benutzer</em> jemanden dieser Firma
+              bearbeiten und dort <em>Firmenadmin</em> setzen.
+            </p>
+          )}
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium">Vergebbare Rechte</legend>

@@ -30,8 +30,18 @@ export async function revealNav(): Promise<void> {
   if (me === null) return;
 
   const holds: Record<string, boolean> = {
+    // `isCompanyAdmin` on /me is already folded against the company's
+    // delegation grant, so a promotion into a company that was never switched
+    // on does not light this up — which is the whole point of resolving it
+    // server-side rather than reading the stored flag.
     "company-admin": (me.companies ?? []).some((c) => c.isCompanyAdmin),
     "platform-admin": me.isAdmin === true,
+    // `/firma` is the company-INTERNAL view. A platform admin belongs to no
+    // company, so the first condition never holds for them — but they may
+    // manage every company from that screen (it offers them a picker), and it
+    // is the only place the internal view exists.
+    "company-or-platform-admin":
+      me.isAdmin === true || (me.companies ?? []).some((c) => c.isCompanyAdmin),
   };
 
   for (const row of rows) {

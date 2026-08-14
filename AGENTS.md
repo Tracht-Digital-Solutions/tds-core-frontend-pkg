@@ -700,6 +700,21 @@ per-user form: admin / support-agent / blog-author flags, account status, and
 `permissions`, `groupIds`, `isCompanyAdmin`, and an optional `permissionCeiling`
 (empty = inherit the company's).
 
+- **Rights are edited through `PermissionMatrix`**, shared with `/firma` so the
+  two screens cannot drift. It is a **tri-state per right** — inherited from a
+  group, granted individually, or withheld individually — rendered adaptively:
+  a right no assigned group carries gets a plain checkbox, because "inherited"
+  and "withheld" both mean *not granted* there and offering both would be
+  asking for a choice between two spellings of "no". A right a group DOES carry
+  gets three options and names the group, since the interesting question there
+  is "why does this person have it".
+- **The origin is computed in the client** from `groups[].permissions`, not
+  delivered by the server: ticking a group above changes which shape a right
+  renders in, and a server-side answer would be stale the moment it did.
+- **Only the decisions are stored** — `permissions` (granted) and
+  `permissionDenies` (withheld), never the effective set. The effective set is
+  derived on every token issue; writing it back would freeze a group's
+  contribution at the moment somebody last opened the form.
 - **Permission options come from the COMPOSED catalog** (`GET
   ${API_BASE}/admin/permissions`, every module's contribution), grouped by
   section, falling back to `tds-shared`'s `PORTAL_PERMISSIONS` when that service
@@ -707,9 +722,17 @@ per-user form: admin / support-agent / blog-author flags, account status, and
   definition of a valid right. Offering only those nine keys is exactly what
   Phase 2 fixed: the panel composes thirteen extensions and their rights were
   ungrantable here.
-- **A stored key the catalog does not know still renders**, as a removable
-  warning chip. Loosening the backend's validation was one-way; this is what
-  keeps it auditable.
+- **A stored key the catalog does not know still renders**, under an
+  "Unbekannt" heading. Loosening the backend's validation was one-way, so a key
+  can be legitimately held and unrecognised — dropping it would make it
+  invisible AND unremovable.
+- **The Firmenadmin checkbox is disabled for a company without delegation**,
+  with the fix named (*Firmen-Kontingente → Firmenadmins zulassen*). The policy
+  is fetched per company as the form touches it, not up front: the list screen
+  shows every user and would otherwise fetch a policy for every company on a
+  page where nobody is editing. A pending fetch counts as ALLOWED — the backend
+  refuses with a named 422 either way, and a control disabled on a pending
+  request reads as "not permitted".
 - **The four role-preset buttons are gone.** They are real groups now (seeded
   `is_system` rows). What is left is one button that clears the DIRECT grants —
   it deliberately does not touch the group boxes, because group rights are added
@@ -723,8 +746,12 @@ cannot be renamed or deleted; something is assigned to them. Every write revokes
 sessions (the resolved union rides in the JWT), and the screen SAYS how many —
 "saved" while nothing changes for an hour gets debugged twice.
 
-**Firmen-Kontingente — `CompanyQuotasAdmin.tsx`.** `maxUsers` and
-`allowedPermissions` per company, plus `allowCustomGroups`. Two "unlimited"
+**Firmen-Kontingente — `CompanyQuotasAdmin.tsx`.** `maxUsers`,
+`allowedPermissions`, `allowCustomGroups` and **`allowCompanyAdmins`** per
+company. That last one is the switch the whole delegated surface hangs on: off
+(the default, including for a company with no policy row) means nobody inside
+the company manages users, rights or groups, and `/firma` stays invisible to
+them. The platform admin is never subject to it. Two "unlimited"
 states that must not be collapsed: `maxUsers: null` = no cap;
 `allowedPermissions: null` = no ceiling, while `[]` = may grant nothing.
 Unticking "Alle Rechte freigeben" seeds the box list from the full catalog so an
@@ -737,6 +764,18 @@ admin is never subject to them.
 unhidden by `lib/revealNav.ts` against the memoised `/me`. **Hiding is not a
 permission check** — every `/company/*` call is gated by auth-api's
 `CompanyAdminMiddleware`; this only avoids offering a page that would 403.
+
+The row's condition is `company-or-platform-admin`. A platform admin belongs to
+no company, so the company-admin condition never holds for them — but they may
+manage every company from this screen, which offers them a **company picker**
+built from `fetchCompanies()` instead of their (empty) memberships. That is
+"als Universaladmin alle Rechte auch intern dieser Firma bearbeiten": the
+internal view exists nowhere else.
+
+`isCompanyAdmin` on `/me` arrives already folded against the company's
+delegation grant (auth-api resolves it), so a promotion into a company that was
+never switched on does not light this row up — which is why the resolution
+happens server-side rather than by reading the stored flag here.
 
 It lives in the **host**, not in the Firmen extension: `tds-customer-frontend`
 composes only support-tickets/billing/messages/projects/documents, and a company

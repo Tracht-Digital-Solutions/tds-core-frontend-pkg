@@ -37,6 +37,14 @@ export interface CompanyPolicy {
   maxUsers: number | null;
   allowedPermissions: string[] | null;
   allowCustomGroups: boolean;
+  /**
+   * May this company have company admins at all? Off means nobody inside it
+   * creates or manages users or assigns groups — the whole `/company/*`
+   * surface answers 403. Defaults to false, including for a company that has
+   * no policy row: unlike the limits in this object, this field hands a
+   * capability out rather than capping one.
+   */
+  allowCompanyAdmins: boolean;
 }
 
 export interface CompanyMember {
@@ -49,6 +57,13 @@ export interface CompanyMember {
   permissions: string[];
   groupIds: number[];
   isCompanyAdmin: boolean;
+  /**
+   * Rights withheld from this person even where an assigned group grants them.
+   * The RAW stored decision, not the effective set — an effective list cannot
+   * express "the group grants it and we took it away", which is exactly what
+   * the editor has to show.
+   */
+  permissionDenies: string[];
 }
 
 export interface CompanyUsersPayload {
@@ -56,6 +71,7 @@ export interface CompanyUsersPayload {
   seats: { used: number; max: number | null; remaining: number | null };
   allowedPermissions: string[] | null;
   allowCustomGroups: boolean;
+  allowCompanyAdmins: boolean;
   groups: Group[];
 }
 
@@ -203,6 +219,10 @@ export async function describeFailure(res: Response | null, fallback: string): P
       return "Dieses Feld darf hier nicht geändert werden.";
     case "custom_groups_disabled":
       return "Diese Firma darf keine eigenen Gruppen anlegen.";
+    case "delegation_disabled":
+      // Names the fix, because only a platform admin can apply it and the
+      // person reading this may not be one.
+      return "Für diese Firma sind Firmenadmins nicht freigeschaltet (Benutzer → Firmen-Kontingente).";
     case "unknown_group":
       return "Unbekannte Gruppe.";
     case "seats_in_use":

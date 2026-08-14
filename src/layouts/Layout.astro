@@ -61,7 +61,7 @@ interface NavInput {
   /** Absolute link to another property — opens in a new tab (see below). */
   external?: boolean | undefined;
   /** Render hidden and unhide at runtime — see NavList and `revealNav`. */
-  revealFor?: "company-admin" | "platform-admin" | undefined;
+  revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
 }
 
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
@@ -85,7 +85,7 @@ const baseNav: NavInput[] = [
     id: "firma",
     icon: "building",
     order: 2,
-    revealFor: "company-admin",
+    revealFor: "company-or-platform-admin",
   },
   // One route, two wikis (see pages/wiki.astro): the admin build gets the API
   // reference, the portal gets FAQs and handbooks. The label and icon follow the

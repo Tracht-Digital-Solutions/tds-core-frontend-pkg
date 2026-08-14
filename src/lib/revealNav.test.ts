@@ -103,6 +103,39 @@ describe("revealNav", () => {
     expect(hidden("odd")).toBe(true);
   });
 
+  it("reveals /firma for a platform admin, who belongs to no company", async () => {
+    // They administer every company from that screen (it offers them a
+    // picker), and it is the only place the company-internal view exists.
+    document.body.innerHTML = `<a id="firma" data-reveal-for="company-or-platform-admin" hidden>Meine Firma</a>`;
+    await run({ userId: 1, email: "a@b.test", isAdmin: true, companies: [] });
+
+    expect(hidden("firma")).toBe(false);
+  });
+
+  it("reveals /firma for a company admin too", async () => {
+    document.body.innerHTML = `<a id="firma" data-reveal-for="company-or-platform-admin" hidden>Meine Firma</a>`;
+    await run({
+      userId: 1,
+      email: "a@b.test",
+      isAdmin: false,
+      companies: [{ companyId: 3, isCompanyAdmin: true }],
+    });
+
+    expect(hidden("firma")).toBe(false);
+  });
+
+  it("keeps /firma hidden for a plain member", async () => {
+    document.body.innerHTML = `<a id="firma" data-reveal-for="company-or-platform-admin" hidden>Meine Firma</a>`;
+    await run({
+      userId: 1,
+      email: "a@b.test",
+      isAdmin: false,
+      companies: [{ companyId: 3, isCompanyAdmin: false }],
+    });
+
+    expect(hidden("firma")).toBe(true);
+  });
+
   it("costs no request when the page has no such row", async () => {
     document.body.innerHTML = "<a id=plain>Dashboard</a>";
     vi.resetModules();
