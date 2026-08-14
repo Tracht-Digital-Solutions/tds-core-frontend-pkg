@@ -32,8 +32,9 @@ export default defineConfig({
 });
 ```
 
-- `coreFrontendBase()` — `injectRoute`s the base pages (`/`, `/users`, `/module`,
-  `/einstellungen`, `/wiki`), whose entrypoints are this package's subpaths; their
+- `coreFrontendBase()` — `injectRoute`s the seven base pages (`/`, `/users`,
+  `/firma`, `/profil`, `/module`, `/einstellungen`, `/wiki`), whose entrypoints
+  are this package's subpaths; their
   relative imports (Layout, components, lib, styles) resolve inside the package.
   It also serves `virtual:frontend-modules`: the composed package inventory
   (pinned range + installed version + module name), read from the **product's**
