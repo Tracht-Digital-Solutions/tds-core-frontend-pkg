@@ -206,7 +206,7 @@ export default function MailSettings() {
       {status?.source === "env" ? (
         <p className="marginalia">
           Der Versand läuft derzeit über die <code>MAIL_DSN</code> auf dem Host. Sobald hier ein
-          Server eingetragen und gespeichert ist, gilt diese Einstellung — die <code>.env</code>
+          Server eingetragen und gespeichert ist, gilt diese Einstellung — die <code>.env</code>{" "}
           bleibt nur noch Rückfallebene.
         </p>
       ) : null}

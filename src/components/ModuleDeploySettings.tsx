@@ -243,9 +243,14 @@ export default function ModuleDeploySettings() {
         </label>
       </div>
 
+      {/* The `{" "}` after a closing tag is load-bearing, not formatting: JSX
+          strips leading/trailing whitespace from a text chunk when it contains
+          a newline, so `</strong>` followed by a line break and a word renders
+          them glued together. This paragraph shipped as "Linieselbstständig"
+          and "denmain-Stand". */}
       <p className="marginalia">
-        Aktiv startet die API bei einer neuen Version <strong>innerhalb der gepinnten Linie</strong>
-        selbstständig den Frontend-Rebuild. Das Backend-Bundle bleibt manuell — es würde den
+        Aktiv startet die API bei einer neuen Version <strong>innerhalb der gepinnten Linie</strong>{" "}
+        selbstständig den Frontend-Rebuild. Das Backend-Bundle bleibt manuell — es würde den{" "}
         <code>main</code>-Stand aller Repositories ausliefern, auch unveröffentlichte Commits. Der
         Zeitplan hängt am Request-Verkehr der API: ohne Zugriffe läuft keine Prüfung (der
         Produktions-Host hat weder Cron noch <code>proc_open</code>).
