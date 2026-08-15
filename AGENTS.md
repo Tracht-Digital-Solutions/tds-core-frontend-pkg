@@ -259,6 +259,18 @@ and must stay **before** the pre-paint gate below it, because the gate's spinner
 paints in the theme's colours; a theme applied after it flashes the wrong
 backdrop. Never wrap it in a template body (`{…}`) — see the gotcha below.
 
+**The gate's two hex fallbacks are guarded by `src/layouts/Layout.test.ts`.**
+They mirror the panel CANVAS, and when that formula changed in tds-shared
+0.23.0 they had to be re-derived by hand — with no runtime error, no failing
+assertion and no way to see the resulting colour step except catching the
+reveal frame in a browser. The test resolves `--tds-panel-canvas` out of the
+INSTALLED tds-shared (shares read back from the stylesheet, not restated),
+computes both products' canvases and checks each literal against their
+midpoint at a tolerance of 3 per channel — tight enough that the pre-0.23.0
+pair fails it by ~4.9. It is the first test here that reads a source file
+rather than importing a module; the pattern comes from tds-shared's
+`design.test.ts`.
+
 The pre-paint auth-gate spinner is a **deliberate fourth copy** of
 `.tds-spinner--lg.tds-spinner--primary`: it paints before the CSS bundle loads,
 so it cannot use the class. Its geometry/timing and the literal hex fallbacks
