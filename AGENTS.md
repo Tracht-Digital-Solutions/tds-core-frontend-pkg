@@ -122,7 +122,8 @@ The shell renders:
 | mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | same surface + token remap as the rail |
 | nav row | `.nav-item` + `.nav-item__icon` / `__label` | icon/label grid; hue from the section's `--nav-hue` |
 | active nav | `.nav-item--active` + `aria-current="page"` | resolved from `Astro.url.pathname` |
-| page canvas | `.panel-main` | accent-tinted canvas + one radial glow |
+| page canvas | `.panel-main` | accent-tinted **warm** canvas + the accent glow + two soft brand fields at the outer edges (tds-shared ≥0.23.0) |
+| page head accent | `.tds-page__head::before` | the three-part brand bar — `--tds-panel-accent` · coral · gold, so the per-product colour axis survives (tds-shared ≥0.23.0) |
 | widget slot | `.widget-slot` + `.widget-slot__icon` | carries `--tds-widget-hue` |
 
 Those shared classes had existed **unused** in tds-shared's `app.css`: the shell

@@ -298,13 +298,20 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               the keyframe name differs, to avoid colliding with tds-spin. The
               hex fallbacks mirror --color-primary (#050f68) and the panel
               CANVAS, not --color-paper: since 0.15.0 the page sits on
-              --tds-panel-canvas, a 4% accent tint over paper, so painting the
-              gate in plain paper would step to a different colour the moment
-              the bundle lands. Preferring the token and falling back to its
-              computed literal (light #f0f1f1 / dark #0d101d) keeps the reveal
-              seamless. The customer target's teal tint differs by ~1%, which
-              is not worth a second literal for the few ms before CSS loads.
-              If those tokens change in tds-shared, change these too.
+              --tds-panel-canvas, so painting the gate in plain paper would
+              step to a different colour the moment the bundle lands.
+              Preferring the token and falling back to its computed literal
+              keeps the reveal seamless.
+
+              THE LITERALS ARE RE-COMPUTED FOR tds-shared 0.23.0, where the
+              canvas became a 3% accent tint over a 40% sand / 60% paper
+              blend rather than 4% over bare paper ("Digitale Maßarbeit" —
+              at 4% over paper the accent's blue pulled the canvas cool).
+              Light #f1efec, dark #0f1223; the admin and customer targets
+              differ by ~1–2%, which is not worth a second literal for the
+              few ms before CSS loads. If the canvas formula changes in
+              tds-shared, recompute these — a stale literal here is a visible
+              colour step at reveal and nothing tests it.
               This block also carries its OWN reduced-motion query. It cannot
               rely on base.css's global clamp: the whole point of this style
               is that it paints BEFORE the CSS bundle loads, so during the
@@ -313,9 +320,9 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
             html.auth-checking body { visibility: hidden; }
             html.auth-checking::before {
               content: ""; position: fixed; inset: 0; z-index: 2147483646;
-              background: var(--tds-panel-canvas, #f0f1f1);
+              background: var(--tds-panel-canvas, #f1efec);
             }
-            html[data-theme="dark"].auth-checking::before { background: var(--tds-panel-canvas, #0d101d); }
+            html[data-theme="dark"].auth-checking::before { background: var(--tds-panel-canvas, #0f1223); }
             html.auth-checking::after {
               content: ""; position: fixed; inset: 0; margin: auto; z-index: 2147483647;
               width: 2.25rem; height: 2.25rem; border-radius: 9999px;
