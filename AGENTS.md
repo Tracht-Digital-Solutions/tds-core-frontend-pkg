@@ -436,6 +436,36 @@ Three things about it are deliberate:
 The API side (namespace `mail`, precedence, redaction) is documented in
 `tds-core-frontend-api`'s AGENTS.md.
 
+## Site-Verbindungen — a base settings section
+
+`components/SiteKeysSettings.tsx`, admin product only, rendered **directly above**
+the CORS section on purpose: a key is useless to a site whose origin the
+allow-list rejects, and reading the two next to each other is what makes that
+obvious.
+
+It manages **site keys** — the credential a public static site presents so this
+API knows it is connected. The API half (`app_site_key`, the enforcement policy,
+the middleware) is documented in `tds-core-frontend-api`'s AGENTS.md.
+
+Four things it must keep doing, because each is otherwise silent:
+
+- **Render the issued key IN FLOW, once.** Only a hash is stored, so it can
+  never be shown again; a key in a toast is a key that is gone when the toast is.
+  Same rule as a temporary password: anything the reader must read or copy is
+  in-flow, never transient.
+- **Say whether the origin is allowed at all**, and offer the one-click fix. The
+  button reuses `PUT /admin/cors` and **resends the existing custom entries** —
+  that route stores the whole custom layer, so posting only the new origin would
+  delete the others. A one-click convenience that quietly removes access
+  elsewhere is worse than no button.
+- **Never allow an origin automatically.** The CORS list is the one thing an
+  admin can edit that could cut the panel off from the API, so every entry stays
+  a decision somebody made.
+- **Say what enforcing would cost.** With no valid key anywhere, switching to
+  *Erzwingen* would reject every public build — and the breakage is invisible,
+  because the build-time fetch is fail-soft and renders baked fallbacks. The
+  section says so, and the `warn` counter turns the gap into a number first.
+
 ## CORS / Freigegebene Origins — a base settings section
 
 `components/CorsSettings.tsx`, same placement and same gate as the SMTP section
