@@ -3,15 +3,17 @@
 // by the enabled extensions (via virtual:frontend-settings), the same way the
 // Dashboard hosts widgets. Base-service settings (once ported) render above.
 import Layout from "../layouts/Layout.astro";
+import CorsSettings from "../components/CorsSettings.tsx";
 import MailSettings from "../components/MailSettings.tsx";
 import ModuleDeploySettings from "../components/ModuleDeploySettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
 
-// Base-service settings render above the extension sections. Module & Deployment
-// and E-Mail (SMTP) are admin-product-only: the customer portal is neither the
-// place to start a production pipeline nor to configure the platform's outgoing
-// mail (the API gates both on `isAdmin` either way).
+// Base-service settings render above the extension sections. Module & Deployment,
+// E-Mail (SMTP) and CORS are admin-product-only: the customer portal is neither
+// the place to start a production pipeline, nor to configure the platform's
+// outgoing mail, nor to decide which origins may call the API (the API gates all
+// three on `isAdmin` either way).
 const showAdminSettings = FRONTEND_TARGET === "admin";
 ---
 
@@ -32,6 +34,14 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
           <section class="tds-settings-section" data-settings="mail">
             <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
             <MailSettings client:load />
+          </section>
+        ) : null
+      }
+      {
+        showAdminSettings ? (
+          <section class="tds-settings-section" data-settings="cors">
+            <h2 class="tds-settings-section__title">CORS / Freigegebene Origins</h2>
+            <CorsSettings client:load />
           </section>
         ) : null
       }

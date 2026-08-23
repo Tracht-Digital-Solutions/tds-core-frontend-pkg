@@ -436,6 +436,33 @@ Three things about it are deliberate:
 The API side (namespace `mail`, precedence, redaction) is documented in
 `tds-core-frontend-api`'s AGENTS.md.
 
+## CORS / Freigegebene Origins — a base settings section
+
+`components/CorsSettings.tsx`, same placement and same gate as the SMTP section
+(admin product only; the API gates on `isAdmin` regardless). It edits which
+browser origins may call the API — until 0.23.5 that lived only in
+`CORS_ALLOWED_ORIGINS` on the host, i.e. behind an SSH file edit on a host whose
+whole install model is *ohne SSH*, so adding a customer domain or a staging host
+was not something anybody could actually do.
+
+Two things it must keep showing, because getting either wrong is silent:
+
+- **The LAYER each origin comes from** (`baseline` / `env` / `db`). The
+  effective list is a union of a coded first-party baseline, the host's `.env`
+  and the rows edited here — a union, not an override, so that nothing saved in
+  a browser can remove the origin that browser is running on. Without the layer
+  rendered beside each entry, the ones that cannot be deleted read as a bug.
+- **The REJECTS, in flow.** The server compares an exact string, so
+  `https://kunde.de/` — the standard paste error — unblocks nothing, forever,
+  with no error anywhere to connect it to the site that stayed broken.
+  `PUT /admin/cors` normalises what it can and returns what it could not with a
+  reason; that list is a `.tds-alert` in the flow, not a toast, because it is
+  text to act on. Success is a toast; a partial save raises a *warning* toast so
+  "Gespeichert." never stands alone over a rejected entry.
+
+The API side (namespace `cors`, the union rule, why the middleware takes a
+predicate) is documented in `tds-core-frontend-api`'s AGENTS.md.
+
 ## Virtual modules (renamed)
 
 The shell imports three build-time virtual modules from `frontend-contract`:
