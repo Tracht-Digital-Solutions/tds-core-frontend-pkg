@@ -32,10 +32,10 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@fontsource/lato": "^5.2.7",
     "@tracht-digital-solutions/tds-frontend-contract": "^1.0.0",
-    "@tracht-digital-solutions/tds-shared": "^0.31.0"
+    "@tracht-digital-solutions/tds-shared": "^0.32.0"
   },
   "peerDependencies": {
-    "@astrojs/react": ">=5",
+    "@astrojs/react": ">=6",
     "@tailwindcss/postcss": ">=4",
     "astro": ">=6",
     "react": ">=18",
@@ -43,18 +43,18 @@
     "tailwindcss": ">=4"
   },
   "devDependencies": {
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.2",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "astro": "^7.1.6",
-    "jsdom": "^25.0.1",
-    "rimraf": "^6.0.0",
-    "tsup": "^8.3.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.1.9"
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.6",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "astro": "^7.2.6",
+    "jsdom": "^30.0.1",
+    "rimraf": "^6.1.3",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",

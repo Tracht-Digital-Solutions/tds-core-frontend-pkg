@@ -1,0 +1,43 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+/**
+ * The panel's own "not found".
+ *
+ * There was no such page while the products were static: the Plesk vhost
+ * answered every unmatched path with the dashboard's `index.html` (an SPA
+ * fallback), so a mistyped URL rendered the panel and a *mis-resolved relative
+ * API call* got HTTP 200 with an HTML body — `res.ok` true, `res.json()`
+ * throwing, and the usual `.catch(() => setRows([]))` painting a calm,
+ * permanent empty state with nothing logged anywhere. Server rendering removes
+ * that fallback, which is most of the point of the move, and this page is what
+ * takes its place.
+ *
+ * Prerendered: nothing here varies with anything. It becomes a plain file that
+ * Apache serves without waking Node — which also means it still answers when
+ * the Node app is down, the one failure mode the flip newly makes expressible.
+ */
+export const prerender = true;
+---
+
+<Layout title="404 · Seite nicht gefunden" bare>
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <div>
+        <p class="tds-page__eyebrow">Fehler 404</p>
+        <h1 class="tds-page__title">Diese Seite gibt es nicht</h1>
+        <p class="tds-page__lede">
+          Die Adresse führt ins Leere — vertippt, veraltet, oder das Modul ist in
+          diesem Frontend nicht eingebunden.
+        </p>
+      </div>
+    </div>
+
+    <div class="tds-card">
+      <p class="tds-empty">Kein Eintrag unter dieser Adresse.</p>
+      <div class="tds-row">
+        <a class="btn btn-primary" href="/">Zur Übersicht</a>
+      </div>
+    </div>
+  </section>
+</Layout>

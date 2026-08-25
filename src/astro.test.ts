@@ -19,7 +19,7 @@ const repoRoot = new URL("..", import.meta.url);
 const PKG = "@tracht-digital-solutions/tds-core-frontend";
 
 /** Run the integration's config:setup hook and collect the injected routes. */
-function injectedRoutes(): { pattern: string; entrypoint: string }[] {
+function injectedRoutes(): { pattern: string; entrypoint: string; prerender?: boolean }[] {
   const injectRoute = vi.fn();
   const integration = coreFrontendBase();
   const setup = integration.hooks["astro:config:setup"];
@@ -29,7 +29,9 @@ function injectedRoutes(): { pattern: string; entrypoint: string }[] {
   // only `injectRoute` — so pass just that, via `unknown` since the partial
   // object deliberately does not satisfy the full parameter type.
   (setup as unknown as (opts: { injectRoute: typeof injectRoute }) => void)({ injectRoute });
-  return injectRoute.mock.calls.map((c) => c[0] as { pattern: string; entrypoint: string });
+  return injectRoute.mock.calls.map(
+    (c) => c[0] as { pattern: string; entrypoint: string; prerender?: boolean },
+  );
 }
 
 describe("integration envelope", () => {
@@ -46,9 +48,13 @@ describe("integration envelope", () => {
 });
 
 describe("injected routes", () => {
-  it("injects the seven base pages", () => {
+  it("injects the seven base pages plus the two error pages", () => {
     expect(injectedRoutes().map((r) => r.pattern).sort()).toEqual([
       "/",
+      // Astro matches its 404 handling on this exact route string, so injecting
+      // it is what gives a product a branded not-found without any `src/`.
+      "/404",
+      "/500",
       "/einstellungen",
       // Only useful to a company admin; the nav row unhides itself against /me.
       "/firma",
@@ -58,6 +64,19 @@ describe("injected routes", () => {
       "/users",
       "/wiki",
     ]);
+  });
+
+  it("prerenders the error pages and nothing else", () => {
+    // The flag is the whole mechanism, and it points both ways. Prerendered,
+    // these two are plain files Apache serves without waking Node — which is
+    // what lets them answer when the Node app is the thing that broke. On any
+    // OTHER page it would be a silent staleness bug the day that page starts
+    // varying with something.
+    const prerendered = injectedRoutes()
+      .filter((r) => r.prerender === true)
+      .map((r) => r.pattern)
+      .sort();
+    expect(prerendered).toEqual(["/404", "/500"]);
   });
 
   it("does NOT inject an in-app /login route", () => {
@@ -97,7 +116,7 @@ describe("injected routes", () => {
     // The inventory step needs `config.root` + `updateConfig`; the routes must
     // not depend on it. A guard placed before the loop would take the whole
     // base panel down in any context that supplies a partial hook argument.
-    expect(injectedRoutes().length).toBe(7);
+    expect(injectedRoutes().length).toBe(9);
   });
 });
 

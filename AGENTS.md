@@ -60,10 +60,49 @@ through `frontend-contract` — never edited here.
 
 ## Composition (build-time only)
 
-`frontendHost({ extensions: [...] })` in `astro.config.mjs`. No runtime plugin
-loading, never `output: "server"`. The shell reads `virtual:frontend-registry`
-(nav/permissions/i18n), `virtual:frontend-widgets` and `virtual:frontend-settings`
-(components with real imports). Declared in `src/env.d.ts`.
+`frontendHost({ extensions: [...] })` in `astro.config.mjs`. **Composition is a
+build step and stays one — there is no runtime plugin loading.** That is
+unchanged and is the load-bearing half of this section.
+
+What changed on **2026-08-25**: this used to end "never `output: \"server\"`",
+and both products are server-rendered now (`@astrojs/node`, standalone, under
+Plesk's Passenger). The two are not in tension — the extensions are still folded
+in at build time; only the *rendering* of the composed result moved to request
+time. What server rendering buys is an honest 404 in place of the vhost's SPA
+fallback, which used to answer every unmatched path with the dashboard's HTML
+and HTTP 200.
+
+Two things it deliberately did **not** buy, and neither should be "fixed" later
+without a decision:
+
+- **No page cache.** The three public sites store each render as a file; a panel
+  page is per-visitor, `tds-shared/cache` refuses a response carrying
+  `Set-Cookie`, and its `cacheLocation` cannot key on identity.
+- **No server-side session check.** The pre-paint gate in `Layout.astro` stays a
+  client-side localStorage hint confirmed against `/me`. Never Astro middleware,
+  never `Astro.cookies`: a server-rendered page that varies by visitor is one
+  configuration mistake away from being handed to the wrong one.
+
+The shell reads `virtual:frontend-registry` (nav/permissions/i18n),
+`virtual:frontend-widgets` and `virtual:frontend-settings` (components with real
+imports). Declared in `src/env.d.ts`.
+
+### The two error routes
+
+`coreFrontendBase()` injects `/404` and `/500` alongside the seven base pages,
+both with `prerender: true`.
+
+- Astro decides its 404 handling by matching the literal route string `"/404"`,
+  so an *injected* route is enough — the products still need no `src/` of their
+  own.
+- `prerender` is the whole mechanism and it points both ways. On these two it
+  makes them plain files under the document root, which is what lets them answer
+  when the Node app is the thing that broke. On any **other** page it would be a
+  silent staleness bug the day that page starts varying with something, which is
+  why `astro.test.ts` asserts the prerendered set is exactly these two.
+- Both render `<Layout … bare>`: full `<head>`, no gated chrome. Non-bare, a 404
+  would run the auth gate and bounce a logged-out visitor who mistyped a URL
+  into the central login instead of telling them the page does not exist.
 
 ## Two product targets
 
@@ -512,11 +551,23 @@ The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 
 ## Tests
 
-`npm run test:run` (vitest). DOM suites opt into jsdom via a
-`@vitest-environment` docblock; the rest run in node. 159 tests covering
+`npm run test:run` (vitest 4). DOM suites opt into jsdom via a
+`@vitest-environment` docblock; the rest run in node. 271 tests covering
 `lib/auth`, `lib/dashboardLayout`, `lib/notificationFeed`, `lib/moduleUpdates`,
-`config/target`, `astro.ts` and `components/ModulesAdmin` — the `.astro` shell
-and the remaining islands stay on the product build + `astro check`.
+`config/target`, `astro.ts` and the islands — the `.astro` shell stays on the
+product build + `astro check`.
+
+- **CI runs them since 2026-08-25.** `_build.yml` had `type-check` and
+  `lint:primitives` and no test step, so every one of these suites gated
+  nothing. Both products' release workflows do not run them either, which meant
+  a regression in the shell had two clear paths to production.
+- **`vitest.config.ts` sets `unstubGlobals: true`, and new suites should lean on
+  it.** `restoreMocks` covers spies but does not undo `vi.stubGlobal`, which a
+  dozen suites here use for `fetch` and `localStorage`. A leaked stub is close
+  to undebuggable: `vi.spyOn` on an already-mocked function returns **that same
+  mock** rather than wrapping it, so every later test in the file shares one
+  call history and the failure only appears when the whole file runs. tds-shared
+  hit exactly this on the vitest 4 upgrade.
 
 - **`notificationFeed.test.ts` is mostly about restraint, not features.** The
   poller runs on every page, forever, in every open tab, so the assertions that

@@ -23,7 +23,21 @@ import type { ModuleEntry } from "./lib/moduleUpdates.js";
  */
 const PKG = "@tracht-digital-solutions/tds-core-frontend";
 
-const BASE_ROUTES: ReadonlyArray<{ pattern: string; entrypoint: string }> = [
+const BASE_ROUTES: ReadonlyArray<{
+  pattern: string;
+  entrypoint: string;
+  /**
+   * Build this route once at deploy time instead of on demand.
+   *
+   * Only the two error pages carry it, and only they should. The panel's
+   * ordinary pages are on-demand because "this page cannot vary" is not a
+   * stable property — the day one of them reads a header and keeps the flag, it
+   * silently serves a snapshot. The error pages are different in kind: a
+   * prerendered one is a plain file under the document root, so it still
+   * answers when the Node app is the thing that is broken.
+   */
+  prerender?: boolean;
+}> = [
   { pattern: "/", entrypoint: `${PKG}/src/pages/index.astro` },
   { pattern: "/users", entrypoint: `${PKG}/src/pages/users.astro` },
   // Reached from the shell's profile menu, deliberately NOT from the nav: it
@@ -37,6 +51,13 @@ const BASE_ROUTES: ReadonlyArray<{ pattern: string; entrypoint: string }> = [
   { pattern: "/module", entrypoint: `${PKG}/src/pages/module.astro` },
   { pattern: "/einstellungen", entrypoint: `${PKG}/src/pages/einstellungen.astro` },
   { pattern: "/wiki", entrypoint: `${PKG}/src/pages/wiki.astro` },
+  // Astro treats an injected route whose pattern is exactly "/404" as THE 404
+  // route (it matches on the route string), so the products need no `src/` of
+  // their own to get a branded one. Without it a server-rendered panel answers
+  // with Astro's bare built-in page — and while the products were static, the
+  // Plesk vhost's SPA fallback meant they never 404'd at all.
+  { pattern: "/404", entrypoint: `${PKG}/src/pages/404.astro`, prerender: true },
+  { pattern: "/500", entrypoint: `${PKG}/src/pages/500.astro`, prerender: true },
 ];
 
 /** The virtual module id the Module page imports. */

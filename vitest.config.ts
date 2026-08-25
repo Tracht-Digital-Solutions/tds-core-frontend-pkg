@@ -13,5 +13,12 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     environment: "node",
     restoreMocks: true,
+    // `restoreMocks` covers spies; it does NOT undo `vi.stubGlobal`, which a
+    // dozen suites here use for `fetch` and `localStorage`. A leaked stub is
+    // close to undebuggable, because `vi.spyOn` on an already-mocked function
+    // returns that same mock instead of wrapping it — so every later test in
+    // the file quietly shares one call history and only fails when the whole
+    // file runs. tds-shared hit exactly that on the vitest 4 upgrade.
+    unstubGlobals: true,
   },
 });

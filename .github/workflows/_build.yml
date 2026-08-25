@@ -48,6 +48,15 @@ jobs:
       - name: Lint primitives
         run: npm run lint:primitives
 
+      - name: Test (vitest)
+        # 21 suites and ~270 assertions that gated nothing until 2026-08-25:
+        # type-check and lint:primitives ran here, the tests only ever ran on
+        # somebody's machine. This host owns the shell, the pre-paint auth gate
+        # and — since the SSR flip — the injected error routes of BOTH products,
+        # so a regression here reaches production through two release buttons
+        # that do not run it either.
+        run: npm run test:run
+
       - name: Build (tsup → dist/astro.js)
         run: npm run build
 
