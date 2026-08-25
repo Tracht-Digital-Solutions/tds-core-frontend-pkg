@@ -236,8 +236,9 @@ when the rail is absent (the `bare` layout) and when storage throws.
 **The drawer traps focus, returns it, and closes on navigation.** It used to
 do none of the three: opening it left focus on the page behind, Tab walked
 straight out into content the backdrop covers, and closing dropped focus to the
-top of the document. It also stayed visibly open for the whole of a navigation,
-because every nav entry is a full page load in an MPA and nothing closed it.
+top of the document. With `ClientRouter`, a nav click starts asynchronous
+document preparation while the old drawer is still live, so it must close on
+the link click rather than waiting for the body swap.
 Two details worth keeping: the focusable list is recomputed per keystroke
 rather than cached (the `ThemeToggle` inside the drawer hydrates late, so a
 list taken at load time is already wrong), and **the Escape handler returns
@@ -297,6 +298,54 @@ The no-flash theme bootstrap is **not** hand-written here — it is
 and must stay **before** the pre-paint gate below it, because the gate's spinner
 paints in the theme's colours; a theme applied after it flashes the wrong
 backdrop. Never wrap it in a template body (`{…}`) — see the gotcha below.
+
+## Client-side navigation (ClientRouter + SWR)
+
+`Layout.astro` renders Astro's `<ClientRouter />` on every page, including the
+bare 404/500 shells. The products remain Astro SSR applications: a navigation
+still asks the server to render the destination document, but Astro swaps it in
+without a white reload and `coreFrontendBase()` prefetches internal links on
+hover/focus (`prefetchAll: true`, `defaultStrategy: "hover"`). Do not use the
+viewport strategy — the desktop rail exposes roughly thirty links at once and
+would fetch the whole panel on first paint.
+
+The router replaces `<body>`; it does **not** preserve the rail/topbar by
+default. This creates four contracts:
+
+- **Runtime root state is copied onto the incoming document before the swap.**
+  `themeBootstrapScript` handles `data-theme` on `astro:before-swap`.
+  `data-surface` and `data-frontend` are server-rendered and arrive normally.
+- **DOM bindings are per body, global services are per document.** The one
+  module listener on `astro:page-load` calls `initNavDrawer()`,
+  `initSidebarCollapse()` and `revealNav()` for the newly swapped markup. The
+  401 handler, active-company header provider, preferences listener,
+  notification poller and navigation-progress binding stay outside it; putting
+  any of those inside stacks a listener/poller on every click.
+- **Stateful floating islands carry `transition:persist`.** `ToastHost`,
+  `CookieNotice` and `LiveChatCta` must survive the swap so a save toast is not
+  destroyed, the cookie banner does not replay and an open chat does not close.
+  The progress bar also has a server-rendered counterpart in every body with a
+  stable persist key; a dynamic old node with no incoming counterpart is
+  discarded by Astro.
+- **The drawer's document key handler is registered once, element handlers per
+  swap.** `lib/navDrawer.ts` owns that split. Moving it back into an inline IIFE
+  makes the hamburger stop after the first navigation; rebinding the document
+  handler leaks one copy per page.
+
+Extension islands that opt in read GET data through
+`@tracht-digital-solutions/tds-shared/data`. Its per-tab memory survives the
+document swaps: a revisited list paints its last value immediately, then adds
+`.tds-stale` + `aria-busy` while revalidating. `invalidate()` after a mutation
+must retain the visible value; deleting it regresses the save path to the
+first-load skeleton. This is authenticated browser data and is deliberately not
+the public sites' file-backed `tds-shared/cache`.
+
+**Release dependency:** the router shell needs the shared release that exports
+`./data` and `mountNavProgress` and preserves the theme on swap (planned
+`tds-shared` 0.33.0). Release shared first, then change this package's
+`@tracht-digital-solutions/tds-shared` range from `^0.32.0` to `^0.33.0`, then
+release the host. A clean build against the current range cannot resolve the
+new export even if a developer's locally copied `node_modules` can.
 
 **The gate's two hex fallbacks are guarded by `src/layouts/Layout.test.ts`.**
 They mirror the panel CANVAS, and when that formula changed in tds-shared
@@ -552,7 +601,7 @@ The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 ## Tests
 
 `npm run test:run` (vitest 4). DOM suites opt into jsdom via a
-`@vitest-environment` docblock; the rest run in node. 271 tests covering
+`@vitest-environment` docblock; the rest run in node. 288 tests covering
 `lib/auth`, `lib/dashboardLayout`, `lib/notificationFeed`, `lib/moduleUpdates`,
 `config/target`, `astro.ts` and the islands — the `.astro` shell stays on the
 product build + `astro check`.
@@ -607,7 +656,8 @@ product build + `astro check`.
 
 - Astro can't hydrate a component named only by a string — the widget/settings
   virtual modules carry real imports; render `const W = item.Component; <W />`.
-- Keep the frontend **static**; the auth gate is inline `<head>` + `/me` probe.
+- Keep the session check **client-side**; the auth gate is inline `<head>` +
+  `/me` probe even though the product now renders on the server.
 - Don't hand-author the lightningcss `cssTarget`; spread tds-shared-pkg's
   `tdsViteBuild` once the design system is wired.
 - `npm install --no-package-lock` (Windows lockfile is win32-only).
@@ -724,10 +774,10 @@ open list can refresh itself. Started from the same `<script>` block as
 - **One poller for every module.** Modules contribute events on the BACKEND (the
   contract's `NotificationSource`), so a new module does not add a timer here.
   A poller per extension island would be thirteen intervals on every page.
-- **The cursor is opaque and lives in `sessionStorage`, per target.** Not in
-  memory: the panel is a multi-page static site, so every navigation would be a
-  "first call" — which suppresses the backlog and would therefore silently drop
-  whatever arrived while the page was changing. Not `localStorage`: two tabs
+- **The cursor is opaque and lives in `sessionStorage`, per target.** Not only
+  in memory: ClientRouter normally keeps the document alive, but a hard reload
+  or fallback navigation must not become a "first call" that suppresses and
+  silently drops whatever arrived during the change. Not `localStorage`: two tabs
   sharing one cursor would race to consume events and each would see only some.
 - **First call announces nothing.** The backend returns items only once it has
   seen a cursor, so opening a tab is never a burst of toasts about yesterday.

@@ -120,6 +120,46 @@ describe("injected routes", () => {
   });
 });
 
+describe("prefetch", () => {
+  /** Run the setup hook with a stub `updateConfig` and return what it merged. */
+  function mergedConfig(): Record<string, unknown> {
+    const integration = coreFrontendBase();
+    const setup = integration.hooks["astro:config:setup"];
+    if (!setup) throw new Error("integration has no astro:config:setup hook");
+    const updateConfig = vi.fn();
+    (
+      setup as unknown as (opts: {
+        injectRoute: () => void;
+        updateConfig: (c: Record<string, unknown>) => void;
+      }) => void
+    )({ injectRoute: () => {}, updateConfig });
+    return Object.assign({}, ...updateConfig.mock.calls.map((c) => c[0])) as Record<string, unknown>;
+  }
+
+  it("switches prefetching on for every internal link", () => {
+    // Half of "the panel does not reload": the ClientRouter swap still waits
+    // on a server render, and prefetching is what has usually already paid for
+    // it by the time the click lands.
+    expect(mergedConfig().prefetch).toEqual({ prefetchAll: true, defaultStrategy: "hover" });
+  });
+
+  it("does NOT prefetch on viewport", () => {
+    // The rail renders every composed nav entry at once — up to ~30 across six
+    // zones, all on screen — so a viewport strategy would fetch the whole
+    // panel on first paint. `hover` covers keyboard users too (Astro fires it
+    // on focus).
+    const prefetch = mergedConfig().prefetch as { defaultStrategy?: string };
+    expect(prefetch.defaultStrategy).not.toBe("viewport");
+  });
+
+  it("configures prefetching in the HOST, not in each product", () => {
+    // A product repo's only composition decision is its extension set. A
+    // routing behaviour the host's own Layout depends on must not be something
+    // a product can forget to switch on.
+    expect(mergedConfig().prefetch).toBeDefined();
+  });
+});
+
 /**
  * A throwaway product checkout. Built on disk rather than committed because a
  * fixture needs a `node_modules/` directory, which every repo here gitignores —

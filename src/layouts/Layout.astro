@@ -15,6 +15,9 @@ import {
   ToastHost,
 } from "@tracht-digital-solutions/tds-shared/components";
 import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
+// Client-side navigation. See the CLIENT-SIDE NAVIGATION note further down for
+// the four things it changes about how this shell has to be written.
+import { ClientRouter } from "astro:transitions";
 import BrandWordmark from "../components/BrandWordmark.astro";
 import Icon from "../components/Icon.astro";
 import UserMenu from "../components/UserMenu.tsx";
@@ -211,6 +214,33 @@ const isActive = (href: string) => {
  * as the data. They previously shared the data but hand-copied the markup, and
  * the copies had already drifted (only the rail set `data-nav`).
  *
+ * CLIENT-SIDE NAVIGATION — the panel navigates with Astro's `ClientRouter`
+ * (rendered in `<head>` below), so a nav click swaps the document instead of
+ * reloading it: the rail, the top bar, the fonts and the stylesheet all stay
+ * put, and the page never blanks. Four consequences this file has to honour,
+ * each of which is a real bug if forgotten:
+ *
+ *  1. `<html>` LOSES EVERY ATTRIBUTE on a swap — Astro clears them and copies
+ *     the incoming document's back. `data-surface`/`data-frontend` are
+ *     server-rendered and come along; `data-theme` is written at runtime and
+ *     would NOT, so the theme bootstrap re-applies it onto the incoming
+ *     document (tds-shared 0.33.0). `auth-checking` being cleared is correct —
+ *     the gate has already run.
+ *  2. SCRIPTS RUN ONCE. Astro de-duplicates by `src` (module scripts) or by
+ *     text content (inline ones), so nothing below re-executes by itself. Code
+ *     that BINDS TO SHELL MARKUP must therefore rebind on `astro:page-load`,
+ *     which fires on the initial load as well — that is what the init block at
+ *     the end of the body does. Code that installs a one-time global (the
+ *     401 backstop, the header provider, the notification poller) must NOT be
+ *     in there, or every navigation would add another poller.
+ *  3. CHROME THAT MUST NOT RESTART carries `transition:persist`: the toast
+ *     stack (a toast raised by a save has to survive the navigation that
+ *     follows it), the cookie notice (re-mounting it would re-animate the
+ *     banner on every click) and the live-chat widget (an open conversation
+ *     must not close because the user opened another page).
+ *  4. THE PAGE STILL COSTS A SERVER RENDER. `mountNavProgress()` draws the
+ *     thin bar that says so; without it a 300 ms swap reads as a dead click.
+ *
  * GOTCHA — do NOT put a multi-line JSX expression comment in this file's
  * template body. Astro compiles the template into a template literal and
  * mis-parses it, failing the build with a bare `Expected ")" but found "{"`
@@ -281,6 +311,17 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
 
     <link rel="preconnect" href="https://api.tracht-digital.de" crossorigin />
     <title>{title}</title>
+
+    {/* Client-side navigation for the whole panel. Rendered unconditionally,
+        `bare` included: a bare page is still reachable by link, and a router
+        present on one page and absent on the next means the first click out of
+        it falls back to a full load — which is correct behaviour but an odd
+        thing to arrange on purpose.
+
+        Prefetching is configured by `coreFrontendBase()` (astro.ts), not here:
+        it is a build setting, and putting it in the integration keeps the
+        product astro.configs free of anything but their extension set. */}
+    <ClientRouter />
 
     {
       !bare && (
@@ -504,88 +545,30 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
             </main>
           </div>
         </div>
-        <script is:inline>
-          (function () {
-            var drawer = document.getElementById("nav-drawer");
-            var trigger = document.getElementById("nav-drawer-open");
-            if (!drawer || !trigger) return;
-            var panel = drawer.querySelector(".nav-drawer-panel");
-
-            var isOpen = function () {
-              return drawer.getAttribute("data-open") === "true";
-            };
-            // Tab order inside the panel. Recomputed per use rather than
-            // cached: the nav is server-rendered but the theme toggle inside
-            // it hydrates late, so a list taken at load time is wrong.
-            var focusables = function () {
-              return Array.prototype.filter.call(
-                panel.querySelectorAll("a[href], button:not([disabled]), [tabindex]:not([tabindex='-1'])"),
-                function (el) { return el.offsetParent !== null; }
-              );
-            };
-
-            function setOpen(open) {
-              if (open === isOpen()) return;
-              drawer.setAttribute("data-open", open ? "true" : "false");
-              trigger.setAttribute("aria-expanded", open ? "true" : "false");
-              document.body.style.overflow = open ? "hidden" : "";
-              if (open) {
-                var first = focusables()[0];
-                if (first) first.focus();
-              } else {
-                // Back where they came from. Without this, closing drops focus
-                // to the top of the document and a keyboard user has to tab
-                // through the whole page to get anywhere.
-                trigger.focus();
-              }
-            }
-
-            trigger.addEventListener("click", function () {
-              setOpen(!isOpen());
-            });
-            drawer.querySelectorAll("[data-nav-drawer-close]").forEach(function (el) {
-              el.addEventListener("click", function () {
-                setOpen(false);
-              });
-            });
-            // Every nav entry is a full page load (this is an MPA), so without
-            // this the drawer stays visibly open across the whole navigation.
-            panel.addEventListener("click", function (e) {
-              if (e.target.closest("a[href]")) setOpen(false);
-            });
-
-            document.addEventListener("keydown", function (e) {
-              // Guarded on the open state. Unconditional, this also fired for
-              // an Escape inside a <dialog> — and cleared `body.overflow`,
-              // releasing a scroll lock that belonged to something else.
-              if (!isOpen()) return;
-              if (e.key === "Escape") {
-                setOpen(false);
-                return;
-              }
-              if (e.key !== "Tab") return;
-              // The drawer covers the page but leaves the page focusable, so
-              // Tab would walk out of it into content the user cannot see.
-              var items = focusables();
-              if (!items.length) return;
-              var first = items[0];
-              var last = items[items.length - 1];
-              if (e.shiftKey && document.activeElement === first) {
-                e.preventDefault();
-                last.focus();
-              } else if (!e.shiftKey && document.activeElement === last) {
-                e.preventDefault();
-                first.focus();
-              } else if (!panel.contains(document.activeElement)) {
-                e.preventDefault();
-                first.focus();
-              }
-            });
-          })();
-        </script>
         <script>
+          // ─── Per-page-load shell wiring ────────────────────────────────
+          //
+          // Everything in here binds to markup the ClientRouter REPLACES on
+          // every navigation, so it has to run again each time. `astro:page-
+          // load` fires on the initial load too, which is why there is no
+          // separate first-run call — adding one would double-bind the very
+          // first page.
+          //
+          // Anything that installs a one-time global belongs in the block
+          // below this one, not here.
           import { initSidebarCollapse } from "../lib/sidebarCollapse";
-          initSidebarCollapse();
+          import { initNavDrawer } from "../lib/navDrawer";
+          import { revealNav } from "../lib/revealNav";
+
+          document.addEventListener("astro:page-load", () => {
+            initNavDrawer();
+            initSidebarCollapse();
+            // Nav rows that depend on the principal (currently just "Meine
+            // Firma"). Uses the memoised /me, so a re-run costs no request —
+            // and it MUST re-run: the rows come back hidden with every fresh
+            // server render.
+            void revealNav();
+          });
         </script>
         <script>
           // NB no `define:vars` on this script: it implies `is:inline`, and an
@@ -600,7 +583,7 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           import { actAsHeaders } from "../lib/activeCompany";
           import { initNotificationFeed } from "../lib/notificationFeed";
           import { initPreferences } from "../lib/preferences";
-          import { revealNav } from "../lib/revealNav";
+          import { mountNavProgress } from "@tracht-digital-solutions/tds-shared/nav";
           import { FRONTEND_TARGET } from "../config/target";
 
           // Extension islands call the API through tds-shared's `apiFetch`,
@@ -616,9 +599,12 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
           // header to auth-api, whose CORS refuses it, and the login breaks.
           setRequestHeadersProvider(actAsHeaders);
 
-          // Nav rows that depend on the principal (currently just "Meine
-          // Firma"). Uses the memoised /me, so it costs no extra request.
-          void revealNav();
+          // The thin bar at the top of the viewport during a client-side
+          // navigation. Mounted ONCE and driven by the router's own events.
+          // Its server-rendered node below carries `transition:persist`, so the
+          // body's replacement moves that SAME node into the incoming page;
+          // putting the binding in the per-page block would stack listeners.
+          mountNavProgress();
 
           // One poller for every composed module. Not in `bare` mode: the
           // login/gate page has no session to poll with.
@@ -639,12 +625,37 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
         `bare` mode, because the login/gate page is exactly where a failure has
         to be visible. Anything (island, plain module, console) reaches it via
         the `tds:toast` window event; a second host anywhere would double every
-        toast, so this is the only place it may be mounted. */}
-    <ToastHost client:idle lang={lang} />
-    <CookieNotice client:idle variant="panel" />
+        toast, so this is the only place it may be mounted.
+
+        `transition:persist` on all three: the router swaps <body>, and without
+        it each of these would be torn down and re-mounted on every navigation.
+        For the toast stack that is not cosmetic — a save that raises "Gespei-
+        chert." and then navigates would destroy the toast before it was read,
+        which is precisely the flow the CMS uses. The cookie notice would
+        re-play its entrance animation on every click, and the chat widget would
+        close an open conversation. */}
+    {/* Server-rendered counterpart for mountNavProgress(). It must exist in
+        both documents for Astro to persist the live node across a body swap;
+        a dynamically appended bar with no incoming counterpart is discarded. */}
+    <div
+      id="tds-nav-progress"
+      class="tds-nav-progress"
+      data-state="idle"
+      aria-hidden="true"
+      transition:persist="tds-nav-progress"
+    />
+    <ToastHost client:idle lang={lang} transition:persist="tds-toast-host" />
+    <CookieNotice client:idle variant="panel" transition:persist="tds-cookie-notice" />
     {/* Floating support widget — renders only when the live-chat-cta extension
         enables this frontend (admin/customer) in the admin Einstellungen. Same
         relative API base as every other panel call. */}
-    {!bare && <LiveChatCta client:idle frontend={FRONTEND_TARGET} lang={lang} />}
+    {!bare && (
+      <LiveChatCta
+        client:idle
+        frontend={FRONTEND_TARGET}
+        lang={lang}
+        transition:persist="tds-live-chat"
+      />
+    )}
   </body>
 </html>

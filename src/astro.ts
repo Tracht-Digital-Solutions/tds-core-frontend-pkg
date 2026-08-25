@@ -83,6 +83,29 @@ export function coreFrontendBase(): AstroIntegration {
           injectRoute(route);
         }
 
+        // Prefetching, the half of "the panel does not reload" that the shell
+        // cannot do for itself.
+        //
+        // The Layout renders `<ClientRouter />`, so a nav click swaps the
+        // document instead of reloading it — but the swap still waits on a
+        // server render. Prefetching on hover means that render has usually
+        // already happened by the time the click lands, which is the
+        // difference between "fast" and "instant".
+        //
+        // `hover`, not `viewport`: the rail renders every nav entry the
+        // product composes (up to ~30 across six zones) and they are all in
+        // the viewport at once, so a viewport strategy would fetch the entire
+        // panel on first paint. `hover` also covers keyboard users — Astro
+        // fires it on focus too.
+        //
+        // It lives HERE rather than in each product's astro.config because a
+        // product repo's only composition decision should be its extension
+        // set; a routing behaviour that the host's own Layout depends on must
+        // not be something a product can forget to switch on.
+        if (typeof updateConfig === "function") {
+          updateConfig({ prefetch: { prefetchAll: true, defaultStrategy: "hover" } });
+        }
+
         // Only reachable in a real product build — the unit tests call this hook
         // with `injectRoute` alone, and a host without a resolvable product root
         // still builds (the Module page then simply has nothing to list).

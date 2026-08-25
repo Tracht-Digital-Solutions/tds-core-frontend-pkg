@@ -146,3 +146,61 @@ describe("pre-paint gate backdrop", () => {
     },
   );
 });
+
+/**
+ * Client-side navigation wiring.
+ *
+ * `Layout.astro` is compiled by neither vitest nor `tsc`, so every rule below
+ * is invisible to the rest of the toolchain — the only other place they show up
+ * is a browser, and three of the four fail *silently* there (a stale toast
+ * host, a drawer that stops opening, a theme that flips on the first click).
+ */
+describe("client-side navigation", () => {
+  it("renders the router", () => {
+    expect(layout).toContain('from "astro:transitions"');
+    expect(layout).toContain("<ClientRouter />");
+  });
+
+  it("persists the three pieces of chrome that must not restart", () => {
+    // The toast one is not cosmetic: the CMS raises "Gespeichert." and then
+    // navigates, so a re-mounted host would destroy the toast before it is
+    // read — the save would report nothing at all.
+    for (const name of ["tds-toast-host", "tds-cookie-notice", "tds-live-chat"]) {
+      expect(layout, `${name} must survive a swap`).toContain(`transition:persist="${name}"`);
+    }
+  });
+
+  it("rebinds the shell's DOM wiring on every page load", () => {
+    // The router replaces the rail and the drawer, so anything bound to them
+    // is gone after the first navigation — and an Astro script never re-runs
+    // by itself (it is de-duplicated by src or by text content).
+    const block = layout.slice(layout.indexOf('document.addEventListener("astro:page-load"'));
+    expect(block).toContain("initNavDrawer()");
+    expect(block).toContain("initSidebarCollapse()");
+    expect(block).toContain("revealNav()");
+  });
+
+  it("keeps the one-time globals OUT of the per-page-load block", () => {
+    // The mirror image, and the more expensive half to get wrong: a poller or
+    // a progress bar mounted per navigation stacks up silently and the symptom
+    // (duplicate notifications, a growing pile of bars) points nowhere near
+    // the cause.
+    const block = layout.slice(layout.indexOf('document.addEventListener("astro:page-load"'));
+    const perPageLoad = block.slice(0, block.indexOf("</script>"));
+    for (const call of [
+      "initNotificationFeed(",
+      "initPreferences(",
+      "mountNavProgress(",
+      "setUnauthorizedHandler(",
+      "setRequestHeadersProvider(",
+    ]) {
+      expect(perPageLoad, `${call} must run once, not per navigation`).not.toContain(call);
+    }
+  });
+
+  it("mounts the navigation progress bar", () => {
+    expect(layout).toContain("mountNavProgress()");
+    expect(layout).toContain('id="tds-nav-progress"');
+    expect(layout).toContain('transition:persist="tds-nav-progress"');
+  });
+});
