@@ -29,6 +29,6 @@ declare module "virtual:frontend-settings" {
 // the product's package.json + node_modules, because a static build has no
 // other way to know what it was composed from.
 declare module "virtual:frontend-modules" {
-  import type { ModuleEntry } from "./lib/moduleUpdates";
+  import type { ModuleEntry } from "./lib/moduleInventory";
   export const modules: ModuleEntry[];
 }

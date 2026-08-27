@@ -1,11 +1,12 @@
 ---
 /**
- * Module — the composed inventory of this build plus the update actions.
+ * Module — the read-only composed inventory of this build.
  *
  * The list is baked in at build time (`virtual:frontend-modules`, produced by
  * coreFrontendBase from the product's package.json + node_modules): a static
- * build has no other way to know what it was composed from. Everything live —
- * the published versions and the deploy dispatch — comes from the API.
+ * build has no other way to know what it was composed from. The API contributes
+ * only its locally installed Composer inventory; this page never talks to a
+ * registry and never starts a deployment.
  *
  * Injected into BOTH product targets, but only the admin build links it in the
  * nav; the API gates every route behind `isAdmin` regardless.
@@ -22,8 +23,7 @@ import { modules } from "virtual:frontend-modules";
         <p class="tds-page__eyebrow">System</p>
         <h1 class="tds-page__title">Module</h1>
         <p class="tds-page__lede">
-          Installierte und verfügbare Version jedes komponierten Moduls — und die Pipelines, die eine
-          neuere Version in Betrieb nehmen.
+          Der ausgelieferte Stand der im Panel und im API-Bundle installierten Module.
         </p>
       </div>
     </div>

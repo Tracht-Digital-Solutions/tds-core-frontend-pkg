@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ApiReference from "./ApiReference";
-import type { ModuleEntry } from "../lib/moduleUpdates";
+import type { ModuleEntry } from "../lib/moduleInventory";
 
 /**
  * The admin wiki. What is worth guarding is what makes it usable AS a
@@ -47,7 +47,7 @@ const payload = {
         },
         {
           method: "POST",
-          pattern: "/admin/modules/deploy",
+          pattern: "/sites/pairings/exchange",
           documented: false,
           summary: "",
         },
@@ -99,12 +99,12 @@ const show = async () => {
 describe("grouping", () => {
   it("groups by the module that mounted the route, not by path segment", async () => {
     await show();
-    // Both a base route and an extension route live under /admin/*. If grouping
-    // were path-based they would land in one section called "admin".
+    // A base route and an extension route are intentionally distinguished by
+    // their owner rather than inferred from a path prefix.
     const base = screen.getByText("Basis (Kernel)").closest("details")!;
     const tickets = screen.getByText("Support-Tickets").closest("details")!;
 
-    expect(within(base).getByText("/admin/modules/deploy")).toBeTruthy();
+    expect(within(base).getByText("/sites/pairings/exchange")).toBeTruthy();
     expect(within(tickets).getByText("/admin/tickets/{id:[0-9]+}")).toBeTruthy();
     expect(base).not.toBe(tickets);
   });
@@ -157,7 +157,7 @@ describe("undocumented routes", () => {
     // Introspection is authoritative: forgetting to document a route must not
     // remove it from the reference.
     await show();
-    expect(screen.getByText("/admin/modules/deploy")).toBeTruthy();
+    expect(screen.getByText("/sites/pairings/exchange")).toBeTruthy();
     expect(screen.getByText(/noch keine Beschreibung/)).toBeTruthy();
   });
 

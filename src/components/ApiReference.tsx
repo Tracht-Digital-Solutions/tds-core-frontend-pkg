@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FormAlert, Spinner } from "@tracht-digital-solutions/tds-shared/components";
 import { API_BASE, frontendFetch } from "../lib/auth";
-import type { ModuleEntry } from "../lib/moduleUpdates";
+import type { ModuleEntry } from "../lib/moduleInventory";
 
 /**
  * The ADMIN wiki: the full API of the base plus every composed module, with a
@@ -82,6 +82,8 @@ const AUTH_LABEL: Record<string, string> = {
   permission: "Recht",
   admin: "Nur Admin",
   token: "Token",
+  "pairing-token": "Pairing-Token",
+  "finalize-token": "Finalisierungs-Token",
 };
 
 /**
@@ -257,7 +259,7 @@ function RouteEntry({ route, open }: { route: WikiRoute; open: boolean }) {
   return (
     <details id={anchorFor(route)} open={open}>
       {/* `min-w-0` + `break-all`: a route pattern is one unbroken token
-          (`/admin/modules/auto-update`), and a flex item defaults to
+          (`/cms/sites/{site}/connection/pairing`), and a flex item defaults to
           min-content width, so without both the row ran past the viewport —
           where `body { overflow-x: hidden }` cut it off rather than letting it
           scroll. */}

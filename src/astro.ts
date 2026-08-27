@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
-import type { ModuleEntry } from "./lib/moduleUpdates.js";
+import type { ModuleEntry } from "./lib/moduleInventory.js";
 
 /**
  * `coreFrontendBase()` — the Astro integration that injects the base panel's routes
@@ -123,9 +123,9 @@ export function coreFrontendBase(): AstroIntegration {
  * This is the only moment the truth exists in one place: the pinned range lives
  * in the product's `package.json`, the installed version in its `node_modules`,
  * and the German module name inside each extension's manifest. At runtime the
- * static build has none of it and the API knows only the Composer half — so the
- * inventory is baked in here, and the browser only asks the API what the
- * registry currently publishes.
+ * product build has none of it and the API knows only the Composer half, so the
+ * frontend inventory is baked in here. The browser asks the API only for the
+ * locally installed Composer inventory.
  *
  * Every step degrades rather than failing: a product whose `package.json` cannot
  * be read yields an empty list, and an extension whose manifest will not import

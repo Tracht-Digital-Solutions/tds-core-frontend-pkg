@@ -3,7 +3,7 @@
 The **base frontend host**, published as a package
 (`@tracht-digital-solutions/tds-core-frontend`). It ships the shell (chrome,
 pre-paint auth gate, nav), the **base pages** (Dashboard/widget host, user
-management, Module = Inventar + Updates, Einstellungen inkl. **E-Mail (SMTP)**
+management, Module = read-only Inventar, Einstellungen inkl. **E-Mail (SMTP)**
 im Admin-Build, Wiki = API-Referenz im
 Admin-Build / Hilfe + Handbücher im Portal)
 and the **`coreFrontendBase` Astro integration**
@@ -89,7 +89,7 @@ npm run build                   # tsup → dist/astro.js (the integration)
 
 ## Tests
 
-`npm run test:run` — 288 tests over the framework-agnostic half of the host. The
+`npm run test:run` — the framework-agnostic host suites. The
 `.astro` shell and the React islands stay on the product build + `astro check`.
 
 | Suite | Pins |
@@ -102,8 +102,7 @@ npm run build                   # tsup → dist/astro.js (the integration)
 | `src/astro.test.ts` | the injected base routes resolve to files that exist, are package subpaths, that no in-app `/login` route returns, that module inventory **degrades** rather than failing a product build, and that all-link prefetch uses hover/focus rather than fetching the whole visible rail |
 | `src/layouts/Layout.test.ts` | ClientRouter wiring, persisted toast/cookie/chat/progress chrome, per-swap DOM rebinding versus one-time global services, and the pre-paint gate's theme/canvas contract |
 | `src/lib/navDrawer.test.ts` | focus trap and restore, scroll lock, close-on-navigation, rebinding after body swaps, and exactly one document key handler across swaps |
-| `src/lib/moduleUpdates.test.ts` | the **0.x caret rule** (`^0.1.1` = `>=0.1.1 <0.2.0`), a prerelease sorting below its release, and that an unparseable range answers `null` — not `false` — so "cannot tell" never renders as "Repin erforderlich" |
-| `src/components/ModulesAdmin.test.tsx` | that a repin row offers **no** deploy button, that the confirmation admits one rebuild covers every in-range module, and that a failed dispatch carries its HTTP status |
+| `src/components/ModulesAdmin.test.tsx` | local frontend and Composer inventory are combined through one read-only API request, failures stay visible in-flow, and no update/deployment control is rendered |
 
 Two of these guard documented incidents: the blanket `401 → logout` that looped
 freshly-logged-in users back to the login, and the stale `dist` that kept

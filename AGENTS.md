@@ -8,7 +8,7 @@ that contract.
 **Base (here):** shell/chrome, the pre-paint auth gate (`/me`-confirmed presence
 hint — port from `tds-admin`'s `Layout.astro`, DON'T reinvent), nav renderer,
 **Dashboard widget host** + per-user layout, Wiki, user management, the **Module
-page** (`/module` — composed inventory + updates, see below), the settings
+page** (`/module` — read-only composed inventory, see below), the settings
 framework (the wizard/list shell; individual sections come from extensions),
 i18n plumbing, the API fetch wrapper (401→`/me` backstop, cross-frontend SSO).
 The shell also mounts the shared `LiveChatCta` bubble (from tds-shared) passing
@@ -449,29 +449,14 @@ public tools site (`tools.tracht-digital.de`) is the current example, joining th
 the public sites, which link siblings in the SAME tab: someone in the panel is
 mid-task, and replacing their working context loses their place.
 
-## Module page (`/module`) — inventory + updates
+## Module page (`/module`) — read-only inventory
 
 `pages/module.astro` + `components/ModulesAdmin.tsx`. Shows every composed
-package with its installed version, its Composer (backend) version, the version
-the registry currently publishes, and the range the product pins — plus the
-buttons that put a newer version into service.
-
-**An "update" is a deploy, and there is no way around that.** Composition is a
-build step: the products are composed during `astro build` and the API is
-assembled into one bundle. So a module has TWO halves on TWO pipelines — the npm
-package a product build composes and the Composer package the gateway bundle
-assembles — which is why the table shows both versions. A green frontend version
-says nothing about the PHP side.
-
-**The per-row button is deliberately honest about its scope.** CI installs with
-`npm install --no-package-lock`, so ONE rebuild re-resolves EVERY caret range:
-pressing "Aktualisieren" on one row updates every module that has a newer version
-inside its pinned line. The confirmation says exactly that. And when the newest
-version falls *outside* the pin (a crossed 0.x minor), the row offers **no button
-at all** — it names the replacement range instead, because no rebuild will deliver
-it. `lib/moduleUpdates.ts` is where that verdict is computed; its 0.x caret rule
-(`^0.1.1` = `>=0.1.1 <0.2.0`) is the whole reason `update` and `repin` are two
-different answers.
+package with its installed frontend version, its locally installed Composer
+version where there is one, and the range the product pins. It is an inventory,
+not an updater: the running panel never contacts GitHub or a package registry
+and never starts a workflow. Source changes, dependency repins, builds, releases
+and deploy webhooks stay in the repository release process.
 
 **Where the inventory comes from.** `coreFrontendBase()` reads the PRODUCT's
 `package.json` (pinned ranges) + its `node_modules` (installed versions) at build
@@ -482,12 +467,9 @@ an unreadable root yields an empty list, an unimportable manifest falls back to 
 name derived from the package. **A product build must never break over an admin
 page's metadata.**
 
-**Automatic updates** are configured under *Einstellungen → Module & Deployment*
-and executed by the API (`AutoUpdater`), not here — the panel only renders the
-state and offers "Jetzt prüfen und aktualisieren". Two properties are worth
-remembering: it dispatches the **frontend** rebuild only (the backend target
-would ship every repo's unreleased `main`), and it acts only on in-range updates.
-See `tds-core-frontend-api`'s AGENTS.md for the scheduling model.
+The frontend half comes only from the build-time inventory; the backend half
+comes from read-only `GET /admin/modules`, which inspects the running Composer
+installation. Do not add update checks or dispatch controls back to this page.
 
 The nav entry is admin-target-only; the route is injected into both products
 because there is one route list, and every `/admin/modules*` route is gated on
@@ -524,35 +506,18 @@ Three things about it are deliberate:
 The API side (namespace `mail`, precedence, redaction) is documented in
 `tds-core-frontend-api`'s AGENTS.md.
 
-## Site-Verbindungen — a base settings section
+## Public-site connections live with their CMS resource
 
-`components/SiteKeysSettings.tsx`, admin product only, rendered **directly above**
-the CORS section on purpose: a key is useless to a site whose origin the
-allow-list rejects, and reading the two next to each other is what makes that
-obvious.
+There is deliberately no central *Site-Verbindungen* section in this host.
+Blog connections are operated in the selected blog's settings, landing-page
+connections in the selected website's settings and the tools connection in the
+tools settings. Those extension-owned dialogs start the two-phase one-click
+pairing flow and show the status for that exact resource. A second global UI
+would make it too easy to connect the right origin to the wrong content record.
 
-It manages **site keys** — the credential a public static site presents so this
-API knows it is connected. The API half (`app_site_key`, the enforcement policy,
-the middleware) is documented in `tds-core-frontend-api`'s AGENTS.md.
-
-Four things it must keep doing, because each is otherwise silent:
-
-- **Render the issued key IN FLOW, once.** Only a hash is stored, so it can
-  never be shown again; a key in a toast is a key that is gone when the toast is.
-  Same rule as a temporary password: anything the reader must read or copy is
-  in-flow, never transient.
-- **Say whether the origin is allowed at all**, and offer the one-click fix. The
-  button reuses `PUT /admin/cors` and **resends the existing custom entries** —
-  that route stores the whole custom layer, so posting only the new origin would
-  delete the others. A one-click convenience that quietly removes access
-  elsewhere is worse than no button.
-- **Never allow an origin automatically.** The CORS list is the one thing an
-  admin can edit that could cut the panel off from the API, so every entry stays
-  a decision somebody made.
-- **Say what enforcing would cost.** With no valid key anywhere, switching to
-  *Erzwingen* would reject every public build — and the breakage is invisible,
-  because the build-time fetch is fail-soft and renders baked fallbacks. The
-  section says so, and the `warn` counter turns the gap into a number first.
+The base CORS editor remains here for advanced origin management, but normal
+pairing automatically adds the verified HTTPS production origin. Neither the
+connection UI nor any content write is allowed to call GitHub.
 
 ## CORS / Freigegebene Origins — a base settings section
 
@@ -601,8 +566,8 @@ The generated route-wrapper cache is `node_modules/.tds-frontend/routes/` (was
 ## Tests
 
 `npm run test:run` (vitest 4). DOM suites opt into jsdom via a
-`@vitest-environment` docblock; the rest run in node. 288 tests covering
-`lib/auth`, `lib/dashboardLayout`, `lib/notificationFeed`, `lib/moduleUpdates`,
+`@vitest-environment` docblock; the rest run in node. The suites cover
+`lib/auth`, `lib/dashboardLayout`, `lib/notificationFeed`, `lib/moduleInventory`,
 `config/target`, `astro.ts` and the islands — the `.astro` shell stays on the
 product build + `astro check`.
 
@@ -624,15 +589,9 @@ product build + `astro check`.
   instead of retrying, a transport failure never raises a toast, and the cursor
   advances (or the same event is announced forever).
 
-- **`moduleUpdates.test.ts` pins the 0.x caret rule numerically.** Getting it
-  wrong inverts a promise rather than breaking a render: the admin presses
-  "Aktualisieren", the pipeline runs green, and nothing changes. The PHP twin
-  (`VersionRange`) is asserted separately in the API repo — change one, change
-  the other.
-- **`ModulesAdmin.test.tsx` guards the promises, not the layout** — that a
-  repin row offers no deploy button, that the confirmation admits one rebuild
-  covers every in-range module, and that a failed dispatch carries its HTTP
-  status.
+- **`ModulesAdmin.test.tsx` guards the GitHub boundary** — the inventory is a
+  single read-only request for locally installed backend packages and exposes no
+  update or deployment control.
 
 - **`auth.test.ts` is the 401-backstop guard.** Injecting a blanket
   `redirectToLogin()` into `onUnauthorized` fails

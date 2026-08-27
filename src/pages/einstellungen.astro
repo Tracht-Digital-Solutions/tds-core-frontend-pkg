@@ -5,21 +5,13 @@
 import Layout from "../layouts/Layout.astro";
 import CorsSettings from "../components/CorsSettings.tsx";
 import MailSettings from "../components/MailSettings.tsx";
-import ModuleDeploySettings from "../components/ModuleDeploySettings.tsx";
-import SiteKeysSettings from "../components/SiteKeysSettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
 
-// Base-service settings render above the extension sections. Module & Deployment,
-// E-Mail (SMTP), Site-Verbindungen and CORS are admin-product-only: the customer
-// portal is neither the place to start a production pipeline, nor to configure the
-// platform's outgoing mail, nor to hand out the credentials the public sites
-// connect with, nor to decide which origins may call the API (the API gates all
-// four on `isAdmin` either way).
-//
-// Site-Verbindungen sits directly above CORS on purpose: a key is useless to a
-// site whose origin the allow-list rejects, and reading the two next to each
-// other is what makes that obvious.
+// Base-service settings render above the extension sections. E-Mail (SMTP) and
+// CORS are admin-product-only. Public-site connections deliberately live inside
+// the settings of the blog, website or tools resource they belong to; GitHub and
+// deployment configuration is a release concern and is never exposed here.
 const showAdminSettings = FRONTEND_TARGET === "admin";
 ---
 
@@ -45,25 +37,9 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       }
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="sites">
-            <h2 class="tds-settings-section__title">Site-Verbindungen</h2>
-            <SiteKeysSettings client:load />
-          </section>
-        ) : null
-      }
-      {
-        showAdminSettings ? (
           <section class="tds-settings-section" data-settings="cors">
             <h2 class="tds-settings-section__title">CORS / Freigegebene Origins</h2>
             <CorsSettings client:load />
-          </section>
-        ) : null
-      }
-      {
-        showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="modules">
-            <h2 class="tds-settings-section__title">Module &amp; Deployment</h2>
-            <ModuleDeploySettings client:load />
           </section>
         ) : null
       }

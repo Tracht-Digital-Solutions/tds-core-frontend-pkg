@@ -107,10 +107,10 @@ const baseNav: NavInput[] = [
   { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 4 },
 ];
 
-// Module lists what this build is composed of and starts the deploy pipelines.
+// Module lists the code composed into this build and the locally installed API
+// packages. It is read-only: releases and deploys stay in the repositories.
 // Admin-product only: the route is injected into both targets (one route list),
-// but the customer portal must not advertise a production deploy — and the API
-// gates every /admin/modules route on `isAdmin` regardless of who finds the URL.
+// and the API gates `/admin/modules` on `isAdmin` regardless of who finds it.
 if (FRONTEND_TARGET === "admin") {
   baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 5 });
 
