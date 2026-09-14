@@ -24,6 +24,11 @@ import { widgets } from "virtual:frontend-widgets";
     </div>
   </div>
 
+  {/* Each widget's title is an h3 (`.tds-widget__title`, owned by its
+      extension). Without a level between them and the page's h1, a screen
+      reader's heading list jumped from 1 to 3. */}
+  <h2 class="sr-only">Kacheln</h2>
+
   <div class="dashboard-grid" data-dashboard-grid>
     {
       widgets.map((widget) => {
