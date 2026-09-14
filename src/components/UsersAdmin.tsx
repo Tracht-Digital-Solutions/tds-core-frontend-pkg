@@ -116,7 +116,14 @@ export default function UsersAdmin() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    });
+    }).catch(() => null);
+    if (res === null) {
+      // frontendFetch rejects like fetch when the request never reaches the
+      // auth API; uncaught, the submit ended without a word and the form
+      // stayed open as if nothing had been sent.
+      toast.danger("Anlegen fehlgeschlagen — die API ist nicht erreichbar.");
+      return;
+    }
     if (res.ok) {
       const data = await res.json().catch(() => ({}));
       // A temporary password must be READ and copied, so it stays an in-flow
@@ -142,7 +149,11 @@ export default function UsersAdmin() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
-    });
+    }).catch(() => null);
+    if (res === null) {
+      toast.danger("Speichern fehlgeschlagen — die API ist nicht erreichbar.");
+      return;
+    }
     if (res.ok) {
       setEditingId(null);
       void load();
@@ -159,7 +170,11 @@ export default function UsersAdmin() {
   };
 
   const resetPassword = async (u: AdminUser) => {
-    const res = await frontendFetch(`${usersUrl}/${u.id}/reset-password`, { method: "POST" });
+    const res = await frontendFetch(`${usersUrl}/${u.id}/reset-password`, { method: "POST" }).catch(() => null);
+    if (res === null) {
+      toast.danger("Zurücksetzen fehlgeschlagen — die API ist nicht erreichbar.");
+      return;
+    }
     if (res.ok) {
       const d = await res.json().catch(() => ({}));
       // Same rule as above — the new password is in-flow, not a toast.
