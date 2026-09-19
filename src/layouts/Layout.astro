@@ -270,6 +270,18 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
       revealFor: item.revealFor,
     })),
 }));
+
+// The page swap. tds-shared turns the ROOT cross-fade off (the theme toggle
+// animates root itself), so without this a navigation snapped. Only <main>
+// fades — rail and top bar are identical on both sides and stay perfectly
+// still. Astro's own keyframes, the design library's timing: the new page
+// arrives at `--tds-dur-base`, the old one leaves faster. Reduced motion
+// switches every view-transition animation off in tds-shared's base.css.
+const pageSwap = {
+  old: { name: "astroFadeOut", duration: "var(--tds-dur-fast)", easing: "var(--tds-ease-out)", fillMode: "both" },
+  new: { name: "astroFadeIn", duration: "var(--tds-dur-base)", easing: "var(--tds-ease-out)", fillMode: "both" },
+};
+const mainTransition = { forwards: pageSwap, backwards: pageSwap };
 ---
 
 <!DOCTYPE html>
@@ -538,7 +550,12 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
               <ThemeToggle client:idle />
               <UserMenu client:idle />
             </header>
-            <main id="main" class="panel-main min-w-0 flex-1 p-4 sm:p-6">
+            <main
+              id="main"
+              class="panel-main min-w-0 flex-1 p-4 sm:p-6"
+              transition:name="tds-main"
+              transition:animate={mainTransition}
+            >
               <div class="mx-auto w-full max-w-[90rem]">
                 <slot />
               </div>

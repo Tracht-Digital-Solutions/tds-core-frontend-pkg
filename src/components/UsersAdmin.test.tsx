@@ -67,7 +67,9 @@ describe("UsersAdmin when the auth API is unreachable", () => {
     render(<UsersAdmin />);
     await screen.findByText("erika@example.de");
     await u.click(screen.getByRole("button", { name: "Bearbeiten" }));
-    await u.click(screen.getByRole("button", { name: "Speichern" }));
+    // The card cross-fades from its summary to the form (Presence), so the
+    // form arrives a moment after the click rather than in the same tick.
+    await u.click(await screen.findByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(failedUnreachable()).toBe(true));
     expect(screen.getByRole("heading", { name: "Benutzer bearbeiten" })).toBeTruthy();
   });

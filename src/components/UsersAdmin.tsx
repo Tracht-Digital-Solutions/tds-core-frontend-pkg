@@ -5,6 +5,12 @@ import {
   type PortalPermission,
 } from "@tracht-digital-solutions/tds-shared/permissions";
 import { ConfirmDialog, FormAlert, Spinner, toast } from "@tracht-digital-solutions/tds-shared/components";
+import {
+  AnimatedItem,
+  AnimatedList,
+  Collapse,
+  Presence,
+} from "@tracht-digital-solutions/tds-shared/motion/react";
 import { AUTH_API_URL, frontendFetch } from "../lib/auth";
 import { fetchCompanies, type Company } from "../lib/companies";
 import {
@@ -230,62 +236,66 @@ export default function UsersAdmin() {
         </button>
       </div>
 
-      {showCreate ? (
+      <Collapse open={showCreate}>
         <UserForm companies={companies} catalog={catalog} groups={groups} onSubmit={createUser} onCancel={() => setShowCreate(false)} />
-      ) : null}
+      </Collapse>
 
       {users === null ? (
         <p role="status"><Spinner /></p>
       ) : users.length === 0 ? (
         <p className="tds-empty">Keine Benutzer.</p>
       ) : (
-        <ul className="tds-stack">
+        // Rows arrive, leave (delete) and reflow animated; each card swaps
+        // between its summary and its edit form in place.
+        <AnimatedList className="tds-stack">
           {users.map((u) => (
-            <li key={u.id} className="tds-card p-4">
-              {editingId === u.id ? (
-                <UserForm
-                  companies={companies}
-                  catalog={catalog}
-                  groups={groups}
-                  initial={u}
-                  onSubmit={(patch) => updateUser(u.id, patch)}
-                  onCancel={() => setEditingId(null)}
-                />
-              ) : (
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-medium">{u.name ?? "—"}</p>
-                    <p className="text-sm opacity-70 break-all">{u.email}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {u.isAdmin ? <span className="chip chip--cat-violet">Admin</span> : null}
-                      {u.isAdmin && u.isSupportAgent ? <span className="chip chip--cat-teal">Support-Agent</span> : null}
-                      {u.isBlogAuthor && !u.isAdmin ? <span className="chip chip--cat-amber">Blog-Autor</span> : null}
-                      {u.status === "disabled" ? <span className="chip chip--cat-rose">Gesperrt</span> : null}
-                      {!u.isAdmin ? (
-                        <span className="text-xs opacity-60">
-                          {(u.memberships?.length ?? 0)} Firma
-                          {(u.memberships?.length ?? 0) === 1 ? "" : "s"}
-                          {u.memberships && u.memberships.length > 0
-                            ? ": " + u.memberships.map((m) => companyName.get(m.customerId) ?? `#${m.customerId}`).join(", ")
-                            : ""}
-                        </span>
-                      ) : null}
+            <AnimatedItem key={u.id} className="tds-card p-4">
+              <Presence view={editingId === u.id ? "edit" : "view"}>
+                {editingId === u.id ? (
+                  <UserForm
+                    companies={companies}
+                    catalog={catalog}
+                    groups={groups}
+                    initial={u}
+                    onSubmit={(patch) => updateUser(u.id, patch)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{u.name ?? "—"}</p>
+                      <p className="text-sm opacity-70 break-all">{u.email}</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {u.isAdmin ? <span className="chip chip--cat-violet">Admin</span> : null}
+                        {u.isAdmin && u.isSupportAgent ? <span className="chip chip--cat-teal">Support-Agent</span> : null}
+                        {u.isBlogAuthor && !u.isAdmin ? <span className="chip chip--cat-amber">Blog-Autor</span> : null}
+                        {u.status === "disabled" ? <span className="chip chip--cat-rose">Gesperrt</span> : null}
+                        {!u.isAdmin ? (
+                          <span className="text-xs opacity-60">
+                            {(u.memberships?.length ?? 0)} Firma
+                            {(u.memberships?.length ?? 0) === 1 ? "" : "s"}
+                            {u.memberships && u.memberships.length > 0
+                              ? ": " + u.memberships.map((m) => companyName.get(m.customerId) ?? `#${m.customerId}`).join(", ")
+                              : ""}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    {/* `.tds-toolbar`, not a hand-rolled flex row: this used to
+                        carry `shrink-0`, which pinned three buttons at their full
+                        width and pushed the card 52px past a 375px viewport —
+                        invisible, because body{overflow-x:hidden} CLIPS it. */}
+                    <div className="tds-toolbar">
+                      <button type="button" className="btn btn-ghost" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
+                      <button type="button" className="btn btn-ghost" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
+                      <button type="button" className="btn btn-danger" onClick={() => setPendingDelete(u)}>Löschen</button>
                     </div>
                   </div>
-                  {/* `.tds-toolbar`, not a hand-rolled flex row: this used to
-                      carry `shrink-0`, which pinned three buttons at their full
-                      width and pushed the card 52px past a 375px viewport —
-                      invisible, because body{overflow-x:hidden} CLIPS it. */}
-                  <div className="tds-toolbar">
-                    <button type="button" className="btn btn-ghost" onClick={() => setEditingId(u.id)}>Bearbeiten</button>
-                    <button type="button" className="btn btn-ghost" onClick={() => void resetPassword(u)}>Passwort zurücksetzen</button>
-                    <button type="button" className="btn btn-danger" onClick={() => setPendingDelete(u)}>Löschen</button>
-                  </div>
-                </div>
-              )}
-            </li>
+                )}
+              </Presence>
+            </AnimatedItem>
           ))}
-        </ul>
+        </AnimatedList>
       )}
 
       <ConfirmDialog

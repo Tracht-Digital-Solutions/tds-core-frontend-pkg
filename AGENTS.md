@@ -373,6 +373,36 @@ moment the bundle lands.
 > `Expected ")" but found "{"` pointing at the comment's own closing line
 > rather than at anything real. Put notes in frontmatter or use an HTML comment.
 
+## Motion (tds-shared ≥ 0.38)
+
+The page swap fades **only `<main>`** (`transition:name="tds-main"`, timing
+from the `--tds-dur-*` / `--tds-ease-out` tokens). tds-shared switches the ROOT
+cross-fade off because `ThemeToggle` animates root itself, so without the named
+`<main>` every navigation snapped. Never name the rail, the top bar or the
+drawer — they are identical on both sides and must stay still. Reduced motion
+is handled in tds-shared's base.css (Astro's generated CSS does not check it).
+
+Islands animate with `@tracht-digital-solutions/tds-shared/motion/react`, never
+with `motion` directly — the library owns the reduced-motion policy, the
+never-hidden-on-SSR rule and the one pinned copy of `motion`:
+
+- lists of cards → `AnimatedList` / `AnimatedItem` (`UsersAdmin`, `GroupsAdmin`);
+- a card that switches between summary and edit form → `Presence`;
+- a create/edit form that opens in place → `Collapse` (it keeps the last
+  rendered form on screen while closing, so a nulled draft is never read);
+- chip tabs → `tds-tab` + `TabIndicator` (`ProfileSettings`).
+
+Tables stay static: transforms on `<tr>` render unreliably across engines.
+
+The dashboard reorder (`lib/dashboardLayout.ts`) is vanilla DOM, so it uses
+`flipReorder` — FLIP over the Web Animations API — rather than a view
+transition, which would make the page inert and drop a drag in progress. The
+move buttons (the phone and keyboard path) animate both tiles.
+
+`Presence` swaps with `mode="wait"`: the new view mounts ~160 ms after the
+old one starts leaving. A test that clicks "Bearbeiten" and then queries the
+form must `findBy…`, not `getBy…`.
+
 ## The company list is the last legacy dependency (`lib/companies.ts`)
 
 The user editor needs `{id, name}` per company for membership editing. That list

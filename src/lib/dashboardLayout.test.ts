@@ -21,7 +21,7 @@ vi.mock("./auth", () => ({
   API_BASE: "https://api.tracht-digital.de",
 }));
 
-const { initDashboardLayout } = await import("./dashboardLayout");
+const { initDashboardLayout, flipReorder } = await import("./dashboardLayout");
 
 interface Row {
   widget_id: string;
@@ -472,5 +472,71 @@ describe("reordering by button", () => {
     await vi.waitFor(() => expect(frontendFetch).toHaveBeenCalledTimes(2));
     const layout = JSON.parse(frontendFetch.mock.calls[1]![1].body).layout as Row[];
     expect(layout.map((r) => r.widget_id)).toEqual(["a", "c", "b"]);
+  });
+});
+
+describe("flipReorder — tiles glide instead of teleporting", () => {
+  /** jsdom has no layout: give each tile a rect from its current DOM position. */
+  function tiles(n: number): { grid: HTMLElement; items: HTMLElement[] } {
+    const grid = document.createElement("div");
+    const items = Array.from({ length: n }, (_, i) => {
+      const el = document.createElement("section");
+      el.dataset.id = String(i);
+      el.getBoundingClientRect = () => {
+        const index = Array.prototype.indexOf.call(grid.children, el);
+        return { left: 0, top: index * 100, width: 100, height: 100 } as DOMRect;
+      };
+      el.animate = vi.fn() as unknown as HTMLElement["animate"];
+      grid.appendChild(el);
+      return el;
+    });
+    document.body.appendChild(grid);
+    return { grid, items };
+  }
+
+  // jsdom has no Web Animations API; flipReorder checks for it on the
+  // prototype and would (correctly) skip straight to a plain reorder.
+  const nativeAnimate = Element.prototype.animate;
+  beforeEach(() => {
+    Element.prototype.animate = vi.fn() as unknown as Element["animate"];
+  });
+  afterEach(() => {
+    Element.prototype.animate = nativeAnimate;
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it("animates every tile that moved, from its old place back to none", () => {
+    const { grid, items } = tiles(3);
+    const [a, b] = items as [HTMLElement, HTMLElement];
+    flipReorder(items, () => grid.insertBefore(b, a));
+    // b moved up by one row, a down by one row; the third stayed put.
+    expect(b.animate).toHaveBeenCalledWith(
+      [{ transform: "translate(0px, 100px)" }, { transform: "none" }],
+      expect.objectContaining({ duration: expect.any(Number), easing: expect.stringContaining("cubic-bezier") }),
+    );
+    expect(a.animate).toHaveBeenCalledWith(
+      [{ transform: "translate(0px, -100px)" }, { transform: "none" }],
+      expect.anything(),
+    );
+    expect(items[2]!.animate).not.toHaveBeenCalled();
+  });
+
+  it("leaves the dragged tile alone — it already follows the pointer", () => {
+    const { grid, items } = tiles(2);
+    const [a, b] = items as [HTMLElement, HTMLElement];
+    flipReorder(items, () => grid.insertBefore(b, a), b);
+    expect(b.animate).not.toHaveBeenCalled();
+    expect(a.animate).toHaveBeenCalled();
+  });
+
+  it("only reorders under reduced motion", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("reduce") }));
+    const { grid, items } = tiles(2);
+    const [a, b] = items as [HTMLElement, HTMLElement];
+    flipReorder(items, () => grid.insertBefore(b, a));
+    expect(grid.firstElementChild).toBe(b);
+    expect(a.animate).not.toHaveBeenCalled();
+    expect(b.animate).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog, FormAlert, Spinner, toast } from "@tracht-digital-solutions/tds-shared/components";
+import { AnimatedItem, AnimatedList, Collapse } from "@tracht-digital-solutions/tds-shared/motion/react";
 
 import {
   createGroup,
@@ -200,103 +201,107 @@ export default function GroupsAdmin() {
         </button>
       </div>
 
-      {draft !== null && (
-        <form className="tds-card p-4 space-y-4" onSubmit={save}>
-          <h3 className="font-medium">{draft.id === null ? "Neue Gruppe" : "Gruppe bearbeiten"}</h3>
+      {/* Opens in place. While it closes, AnimatePresence keeps the last
+          rendered form on screen, so the null draft is never read. */}
+      <Collapse open={draft !== null}>
+        {draft !== null && (
+          <form className="tds-card p-4 space-y-4" onSubmit={save}>
+            <h3 className="font-medium">{draft.id === null ? "Neue Gruppe" : "Gruppe bearbeiten"}</h3>
 
-          <div className="tds-row">
+            <div className="tds-row">
+              <label className="block">
+                <span className="text-sm">Name</span>
+                <input
+                  className="field-boxed"
+                  value={draft.name}
+                  required
+                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm">Kürzel (optional)</span>
+                <input
+                  className="field-boxed"
+                  value={draft.slug}
+                  placeholder="wird aus dem Namen gebildet"
+                  onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm">Gilt für</span>
+                <select
+                  className="field-boxed"
+                  value={draft.companyId}
+                  // The scope is what a group IS; changing it on an existing row
+                  // would move every assignment with it.
+                  disabled={draft.id !== null}
+                  onChange={(e) => setDraft({ ...draft, companyId: Number(e.target.value) })}
+                >
+                  <option value={PLATFORM}>Alle Firmen</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
             <label className="block">
-              <span className="text-sm">Name</span>
+              <span className="text-sm">Beschreibung</span>
               <input
                 className="field-boxed"
-                value={draft.name}
-                required
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               />
             </label>
-            <label className="block">
-              <span className="text-sm">Kürzel (optional)</span>
-              <input
-                className="field-boxed"
-                value={draft.slug}
-                placeholder="wird aus dem Namen gebildet"
-                onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm">Gilt für</span>
-              <select
-                className="field-boxed"
-                value={draft.companyId}
-                // The scope is what a group IS; changing it on an existing row
-                // would move every assignment with it.
-                disabled={draft.id !== null}
-                onChange={(e) => setDraft({ ...draft, companyId: Number(e.target.value) })}
-              >
-                <option value={PLATFORM}>Alle Firmen</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
 
-          <label className="block">
-            <span className="text-sm">Beschreibung</span>
-            <input
-              className="field-boxed"
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            />
-          </label>
-
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">Rechte</legend>
-            {grouped.length === 0 ? (
-              <p className="tds-empty">
-                Der Rechte-Katalog ist nicht erreichbar. Die Gruppe lässt sich trotzdem
-                speichern — die bestehenden Rechte bleiben unverändert.
-              </p>
-            ) : (
-              grouped.map(([section, defs]) => (
-                <div key={section}>
-                  <p className="text-xs uppercase opacity-60">{section}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
-                    {defs.map((def) => (
-                      <label key={def.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={draft.permissions.includes(def.id)}
-                          onChange={() => toggle(def.id)}
-                        />
-                        {def.label}
-                      </label>
-                    ))}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">Rechte</legend>
+              {grouped.length === 0 ? (
+                <p className="tds-empty">
+                  Der Rechte-Katalog ist nicht erreichbar. Die Gruppe lässt sich trotzdem
+                  speichern — die bestehenden Rechte bleiben unverändert.
+                </p>
+              ) : (
+                grouped.map(([section, defs]) => (
+                  <div key={section}>
+                    <p className="text-xs uppercase opacity-60">{section}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                      {defs.map((def) => (
+                        <label key={def.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={draft.permissions.includes(def.id)}
+                            onChange={() => toggle(def.id)}
+                          />
+                          {def.label}
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
-          </fieldset>
+                ))
+              )}
+            </fieldset>
 
-          <div className="tds-toolbar">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <Spinner size="sm" /> : "Speichern"}
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setDraft(null)}>
-              Abbrechen
-            </button>
-          </div>
-        </form>
-      )}
+            <div className="tds-toolbar">
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? <Spinner size="sm" /> : "Speichern"}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setDraft(null)}>
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        )}
+      </Collapse>
 
       {groups.length === 0 ? (
         <p className="tds-empty">Keine Gruppen.</p>
       ) : (
-        <ul className="tds-stack">
+        <AnimatedList className="tds-stack">
           {groups.map((group) => (
-            <li key={group.id} className="tds-card p-4">
+            <AnimatedItem key={group.id} className="tds-card p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-medium">{group.name}</p>
@@ -329,9 +334,9 @@ export default function GroupsAdmin() {
                   )}
                 </div>
               </div>
-            </li>
+            </AnimatedItem>
           ))}
-        </ul>
+        </AnimatedList>
       )}
 
       <ConfirmDialog

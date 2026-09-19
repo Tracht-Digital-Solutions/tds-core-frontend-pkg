@@ -161,6 +161,17 @@ describe("client-side navigation", () => {
     expect(layout).toContain("<ClientRouter />");
   });
 
+  it("fades only <main> on a swap, on the design library's timing", () => {
+    // Root's cross-fade is off in tds-shared (the theme toggle owns it), so
+    // without a named <main> every navigation snapped. The rail and top bar
+    // must NOT be named: they are identical on both sides and must stay still.
+    expect(layout).toMatch(/<main[^>]*transition:name="tds-main"/);
+    expect(layout).toMatch(/<main[^>]*transition:animate=\{mainTransition\}/);
+    expect(layout).toContain('duration: "var(--tds-dur-base)"');
+    expect(layout).toContain('easing: "var(--tds-ease-out)"');
+    expect(layout).not.toMatch(/<(header|aside|nav)[^>]*transition:name=/);
+  });
+
   it("persists the three pieces of chrome that must not restart", () => {
     // The toast one is not cosmetic: the CMS raises "Gespeichert." and then
     // navigates, so a re-mounted host would destroy the toast before it is

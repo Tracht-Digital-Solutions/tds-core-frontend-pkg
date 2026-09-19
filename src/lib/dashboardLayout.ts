@@ -10,8 +10,50 @@
  * Progressive enhancement: with no saved layout (or the API unreachable) every
  * widget stays visible in its default order — the dashboard always works.
  */
+import { cssEase, durations } from "@tracht-digital-solutions/tds-shared/motion";
 import { toast } from "@tracht-digital-solutions/tds-shared/toast";
 import { API_BASE, frontendFetch } from "./auth";
+
+/**
+ * Run a DOM reorder and let every tile that moved GLIDE to its new place
+ * instead of teleporting there (FLIP: measure First, mutate, measure Last,
+ * Invert with a transform, Play back to none).
+ *
+ * The Web Animations API rather than a View Transition, on purpose: a view
+ * transition makes the page non-interactive while it runs, which would drop a
+ * drag in progress. This animates `transform` only (compositor), reads layout
+ * only when the order actually changed, and skips the element under the
+ * pointer — that one follows the cursor already. Under reduced motion, or in
+ * an engine without `element.animate`, it is a plain reorder.
+ *
+ * Exported for the test; the dashboard is its only caller.
+ */
+export function flipReorder(
+  items: HTMLElement[],
+  mutate: () => void,
+  skip: HTMLElement | null = null,
+): void {
+  const reduce =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || typeof Element.prototype.animate !== "function") {
+    mutate();
+    return;
+  }
+  const before = new Map(items.map((el) => [el, el.getBoundingClientRect()]));
+  mutate();
+  for (const [el, first] of before) {
+    if (el === skip) continue;
+    const last = el.getBoundingClientRect();
+    const dx = first.left - last.left;
+    const dy = first.top - last.top;
+    if (dx === 0 && dy === 0) continue;
+    el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+      duration: durations.slow,
+      easing: cssEase.out,
+    });
+  }
+}
 
 interface LayoutRow {
   widget_id: string;
@@ -165,11 +207,16 @@ export function initDashboardLayout(): void {
       if (!dragging) return;
       e.preventDefault();
       const after = slotAfter(e.clientY, e.clientX);
-      if (after == null) {
-        grid.appendChild(dragging);
-      } else if (after !== dragging) {
-        grid.insertBefore(dragging, after);
-      }
+      // `dragover` fires continuously; only an actual change of position is
+      // worth a reorder — and only then are the tiles measured.
+      if (after === dragging || dragging.nextElementSibling === after) return;
+      if (after == null && grid.lastElementChild === dragging) return;
+      const moving = dragging;
+      flipReorder(
+        slots(),
+        () => (after == null ? grid.appendChild(moving) : grid.insertBefore(moving, after)),
+        moving,
+      );
     });
   };
 
@@ -205,8 +252,12 @@ export function initDashboardLayout(): void {
     const i = all.indexOf(slot);
     const j = dir === "up" ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= all.length) return;
-    if (dir === "up") grid.insertBefore(slot, all[j]!);
-    else grid.insertBefore(all[j]!, slot);
+    // The phone's (and the keyboard's) reorder: both tiles glide past each
+    // other, so it is visible WHICH tile moved where.
+    flipReorder(all, () => {
+      if (dir === "up") grid.insertBefore(slot, all[j]!);
+      else grid.insertBefore(all[j]!, slot);
+    });
   };
 
   // A single polite live region, created on first use. Announcing through the
