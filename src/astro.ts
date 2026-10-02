@@ -8,7 +8,7 @@ import type { ModuleEntry } from "./lib/moduleInventory.js";
  * (Dashboard, Nutzer, Module, Einstellungen, API-Wiki) into a consuming product
  * build. Login lives on the central site (auth.tracht-digital.de / tds-auth), so there
  * is no in-app /login route — the pre-paint gate bounces there instead. A product
- * repo (tds-admin-panel / tds-customer-panel) adds this
+ * repo (tds-admin-frontend / tds-customer-frontend) adds this
  * alongside `frontendHost({ extensions })` (which injects the extension routes +
  * widget/settings virtual modules) — so one shared host codebase serves every
  * product target, each owning only its extension set + pipeline.
@@ -59,6 +59,16 @@ const BASE_ROUTES: ReadonlyArray<{
   { pattern: "/404", entrypoint: `${PKG}/src/pages/404.astro`, prerender: true },
   { pattern: "/500", entrypoint: `${PKG}/src/pages/500.astro`, prerender: true },
 ];
+
+/**
+ * Every path the host injects into a product, `/404` and `/500` included.
+ *
+ * Exported so the products' composition tests read the real list instead of a
+ * hand-kept copy: theirs had lost `/profil`, `/firma`, `/module` and the error
+ * pages, so a nav entry pointing at one failed and an extension route
+ * colliding with one passed.
+ */
+export const BASE_ROUTE_PATTERNS: readonly string[] = BASE_ROUTES.map((route) => route.pattern);
 
 /** The virtual module id the Module page imports. */
 export const MODULES_MODULE_ID = "virtual:frontend-modules";

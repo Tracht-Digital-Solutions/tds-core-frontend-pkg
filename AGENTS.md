@@ -60,6 +60,16 @@ through `frontend-contract` — never edited here.
 
 ## Composition (build-time only)
 
+**`tds-shared` is a PEER dependency (since 0.29.0), like in every extension.**
+It used to be a regular `^0.38.8` dependency. The admin product pins `^0.44`
+for `tds-ext-cards`, so npm nested a second copy (0.38.8) under this package:
+the shell ran on one tds-shared and the extensions on another — two toast
+hosts, two theme and motion states, duplicated CSS — and the Module page
+reported the root copy, not the one the shell used. The product now decides
+the one version; `npm ls @tracht-digital-solutions/tds-shared` in a product
+must show exactly one. `BASE_ROUTE_PATTERNS` (from `./astro`) is the injected
+route list the products' composition tests read.
+
 `frontendHost({ extensions: [...] })` in `astro.config.mjs`. **Composition is a
 build step and stays one — there is no runtime plugin loading.** That is
 unchanged and is the load-bearing half of this section.
