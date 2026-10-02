@@ -14,3 +14,6 @@ Desktop.ini
 # Editor backups
 *.swp
 *~
+
+# Windows-generated lockfile; CI installs with --no-package-lock
+package-lock.json
