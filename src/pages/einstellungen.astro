@@ -5,6 +5,7 @@
 import Layout from "../layouts/Layout.astro";
 import CorsSettings from "../components/CorsSettings.tsx";
 import MailSettings from "../components/MailSettings.tsx";
+import StripeSettings from "../components/StripeSettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
 
@@ -32,6 +33,14 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
           <section class="tds-settings-section" data-settings="mail">
             <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
             <MailSettings client:load />
+          </section>
+        ) : null
+      }
+      {
+        showAdminSettings ? (
+          <section class="tds-settings-section" data-settings="stripe">
+            <h2 class="tds-settings-section__title">Zahlungen (Stripe)</h2>
+            <StripeSettings client:load />
           </section>
         ) : null
       }
