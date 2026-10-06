@@ -59,7 +59,7 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
 const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string; hint: string }> = [
   { value: "light", label: "Hell", hint: "Immer die helle Oberfläche." },
   { value: "dark", label: "Dunkel", hint: "Immer die dunkle Oberfläche." },
-  { value: "system", label: "System", hint: "Folgt der Einstellung Ihres Geräts." },
+  { value: "system", label: "Auto", hint: "Folgt der Einstellung Ihres Geräts." },
 ];
 
 /** Longest edge of a stored avatar. */
