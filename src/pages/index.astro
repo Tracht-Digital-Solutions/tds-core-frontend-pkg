@@ -40,6 +40,8 @@ import { widgets } from "virtual:frontend-widgets";
             data-widget={widget.id}
             data-size={widget.size}
             data-label={title}
+            data-reveal-permission={(widget as any).permission}
+            hidden={(widget as any).permission !== undefined}
             style={`--tds-widget-hue: ${hueForKey(widget.id)}`}
           >
             <div class="widget-slot__controls">
@@ -92,6 +94,10 @@ import { widgets } from "virtual:frontend-widgets";
     .dashboard-grid.is-editing .widget-slot.is-hidden { opacity: 0.45; }
     .dashboard-grid.is-editing .widget-slot.is-dragging { opacity: 0.5; }
     .widget-slot.is-hidden { display: none; }
+    /* Not permitted (WidgetManifest.permission): gone in edit mode too, and its
+       island never hydrates — `client:visible` waits for a box that never comes,
+       so no 403 is even requested. */
+    .widget-slot[hidden] { display: none !important; }
     .dashboard-grid.is-editing .widget-slot.is-hidden { display: block; }
     .widget-slot__handle { cursor: grab; user-select: none; font-size: 1.1rem; line-height: 1; }
     .widget-slot__toggle { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }

@@ -15,6 +15,7 @@
  * normalisation in Layout.astro's `isActive`, colour in lib/panelHues.ts.
  */
 import Icon from "./Icon.astro";
+import { REVEAL_CACHE_KEY } from "../lib/revealNav";
 
 export interface NavItem {
   href: string;
@@ -37,6 +38,8 @@ export interface NavItem {
    * itself says so too, rather than relying on the nav to hide it.
    */
   revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
+  /** Permission the entry requires (`NavEntry.permission`); hidden until /me holds it. */
+  permission?: string | undefined;
 }
 
 export interface NavSection {
@@ -69,7 +72,8 @@ const { sections } = Astro.props;
             data-tip={item.external ? `${item.label} (neuer Tab)` : item.label}
             aria-current={item.active ? "page" : undefined}
             data-reveal-for={item.revealFor}
-            hidden={item.revealFor !== undefined}
+            data-reveal-permission={item.permission}
+            hidden={item.revealFor !== undefined || item.permission !== undefined}
             target={item.external ? "_blank" : undefined}
             {/* `noopener` is the security half (the opened page cannot reach
                 back through window.opener); `noreferrer` keeps it from learning
@@ -85,4 +89,28 @@ const { sections } = Astro.props;
       </div>
     ))
   }
+  {/* Paints the rows the last /me granted before the first frame; revealNav
+      then applies the live answer both ways. Mirrors applyReveal for this
+      nav only — keep the two in step. */}
+  <script is:inline define:vars={{ key: REVEAL_CACHE_KEY }}>
+    (function () {
+      try {
+        var g = JSON.parse(localStorage.getItem(key) || "null");
+        var nav = document.currentScript && document.currentScript.parentElement;
+        if (!g || !nav) return;
+        var rows = nav.querySelectorAll("[data-reveal-for], [data-reveal-permission]");
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i], c = r.getAttribute("data-reveal-for"), p = r.getAttribute("data-reveal-permission");
+          r.hidden = c ? g.flags[c] !== true : !(g.admin || (p && g.permissions.indexOf(p) !== -1));
+        }
+      } catch (e) {}
+    })();
+  </script>
 </nav>
+
+<style>
+  /* A section whose every row is gated away keeps no orphaned heading. */
+  .nav-group:not(:has(> .nav-item:not([hidden]))) {
+    display: none;
+  }
+</style>

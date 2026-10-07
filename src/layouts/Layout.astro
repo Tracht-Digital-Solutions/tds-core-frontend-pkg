@@ -65,6 +65,8 @@ interface NavInput {
   external?: boolean | undefined;
   /** Render hidden and unhide at runtime — see NavList and `revealNav`. */
   revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
+  /** The extension's `NavEntry.permission` — revealed when /me holds it. */
+  permission?: string | undefined;
 }
 
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
@@ -104,7 +106,17 @@ const baseNav: NavInput[] = [
     icon: FRONTEND_TARGET === "admin" ? "book-open" : "life-buoy",
     order: 3,
   },
-  { href: "/einstellungen", label: "Einstellungen", id: "einstellungen", icon: "settings", order: 4 },
+  // Platform-admin only: every section on that page configures the platform
+  // (SMTP, Stripe, CORS and each extension's /admin/settings/*). In the portal
+  // it used to open onto sections that all answered 403.
+  {
+    href: "/einstellungen",
+    label: "Einstellungen",
+    id: "einstellungen",
+    icon: "settings",
+    order: 4,
+    revealFor: "platform-admin",
+  },
 ];
 
 // Module lists the code composed into this build and the locally installed API
@@ -159,6 +171,10 @@ for (const item of registry.nav) {
     // extension declares one; until now the shell dropped it here.
     icon: item.icon,
     order: item.order ?? 100,
+    // The contract has always carried it ("Permission id required to see the
+    // entry"), and the shell dropped it here — so a portal user saw
+    // "Projekte verwalten" and "TDShop", whose first calls answer 403.
+    permission: item.permission,
   });
   groups.set(key, bucket);
 }
@@ -268,6 +284,7 @@ const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
       active: isActive(item.href),
       external: item.external,
       revealFor: item.revealFor,
+      permission: item.permission,
     })),
 }));
 
@@ -282,6 +299,11 @@ const pageSwap = {
   new: { name: "astroFadeIn", duration: "var(--tds-dur-base)", easing: "var(--tds-ease-out)", fillMode: "both" },
 };
 const mainTransition = { forwards: pageSwap, backwards: pageSwap };
+
+// The shell wrapper is a flex COLUMN below lg (`flex flex-col lg:flex-row`),
+// so the content column — and the tinted canvas on <main> — reaches the bottom
+// of a short page. As a plain block it ended under the last card, and the rest
+// of the phone screen was bare paper (2026-10-07).
 ---
 
 <!DOCTYPE html>
@@ -469,7 +491,7 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
       bare ? (
         <slot />
       ) : (
-        <div class="lg:flex min-h-dvh">
+        <div class="flex flex-col lg:flex-row min-h-dvh">
           <header
             class="lg:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-3 border-b border-[color:var(--color-line)] bg-[color:var(--color-paper)]"
           >

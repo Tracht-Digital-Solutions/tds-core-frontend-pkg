@@ -489,6 +489,33 @@ public tools site (`tools.tracht-digital.de`) is the current example, joining th
 the public sites, which link siblings in the SAME tab: someone in the panel is
 mid-task, and replacing their working context loses their place.
 
+## What a principal sees: `permission` and `revealFor` (2026-10-07)
+
+`NavEntry`, `WidgetManifest` and `SettingsPanel` carry `permission` in the
+contract, and until 2026-10-07 the shell ignored it: a portal user with nine
+read rights saw "Projekte verwalten", "TDShop", the billing and shop tiles and
+every admin settings section, each answering 403.
+
+- Gated elements render `hidden` with `data-reveal-permission` (or
+  `data-reveal-for`) and `lib/revealNav.ts` decides from `/me`: the ACTIVE
+  company's `permissions`, admins see everything. It applies BOTH ways, so a
+  stale grant is taken back.
+- **A settings section without `permission` is platform-admin only** — every
+  extension section configures the platform (`/admin/settings/*`, pairings,
+  IMAP). Einstellungen itself is a platform-admin nav row; a direct visit with
+  nothing left shows `[data-settings-empty]`.
+- A hidden widget never hydrates (`client:visible` waits for a box), so a
+  denied tile costs no 403. A settings island on `client:load` still fetches
+  while hidden — prefer `client:visible` there.
+- The last grant is cached in localStorage (`<prefix>_reveal`) and applied by
+  the inline script in `NavList` before the first paint, or the admin rail —
+  nearly every row gated — would pop in when `/me` answers.
+- A nav group whose rows are all hidden drops its heading (`:has()` in NavList).
+
+**Suchmaschinen (Sitemap)** (`SitemapSettings.tsx`) edits the per-site
+`sitemap_exclusions` on `PUT /admin/sites`. The PUT replaces the whole map, so
+every site's list is sent on every save.
+
 ## Module page (`/module`) — read-only inventory
 
 `pages/module.astro` + `components/ModulesAdmin.tsx`. Shows every composed

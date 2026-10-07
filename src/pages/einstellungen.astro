@@ -6,6 +6,7 @@ import Layout from "../layouts/Layout.astro";
 import CorsSettings from "../components/CorsSettings.tsx";
 import MailSettings from "../components/MailSettings.tsx";
 import StripeSettings from "../components/StripeSettings.tsx";
+import SitemapSettings from "../components/SitemapSettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
 
@@ -24,13 +25,16 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
         <h1 class="tds-page__title">Einstellungen</h1>
       </div>
     </div>
-    {settings.length === 0 && !showAdminSettings ? (
-      <p class="tds-empty">Keine Einstellungen verfügbar.</p>
-    ) : null}
+    {/* Shown by revealNav when no section is left for this account; the page is
+        reachable by URL even where the nav row stays hidden. */}
+    <p class="tds-empty" data-settings-empty hidden={settings.length > 0 || showAdminSettings}>
+      Für Ihr Konto gibt es hier nichts einzustellen. Darstellung und Passwort
+      ändern Sie im <a href="/profil" class="link-underline">Profil</a>.
+    </p>
     <div class="settings-list flex flex-col gap-6">
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="mail">
+          <section class="tds-settings-section" data-settings="mail" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
             <MailSettings client:load />
           </section>
@@ -38,7 +42,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       }
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="stripe">
+          <section class="tds-settings-section" data-settings="stripe" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">Zahlungen (Stripe)</h2>
             <StripeSettings client:load />
           </section>
@@ -46,17 +50,29 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       }
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="cors">
+          <>
+          <section class="tds-settings-section" data-settings="cors" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">CORS / Freigegebene Origins</h2>
             <CorsSettings client:load />
           </section>
+          <section class="tds-settings-section" data-settings="sitemap" data-reveal-for="platform-admin" hidden>
+            <h2 class="tds-settings-section__title">Suchmaschinen (Sitemap)</h2>
+            <SitemapSettings client:visible />
+          </section>
+          </>
         ) : null
       }
       {
         settings.map((panel) => {
           const Panel = panel.Component as any;
           return (
-            <section class="tds-settings-section" data-settings={panel.id}>
+            <section
+              class="tds-settings-section"
+              data-settings={panel.id}
+              data-reveal-permission={panel.permission}
+              data-reveal-for={panel.permission ? undefined : "platform-admin"}
+              hidden
+            >
               <h2 class="tds-settings-section__title">{panel.label}</h2>
               <Panel />
             </section>

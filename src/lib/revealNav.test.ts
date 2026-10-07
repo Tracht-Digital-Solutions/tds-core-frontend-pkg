@@ -46,7 +46,10 @@ async function run(me: unknown | null) {
   await revealNav();
 }
 
-beforeEach(markup);
+beforeEach(() => {
+  localStorage.clear();
+  markup();
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -148,6 +151,64 @@ describe("revealNav", () => {
     });
 
     expect(hidden("firma")).toBe(true);
+  });
+
+  describe("permissions (NavEntry / WidgetManifest / SettingsPanel)", () => {
+    // The contract has always carried `permission`; the shell ignored it, so a
+    // portal user saw "Projekte verwalten", the shop tiles and every admin
+    // settings section, each answering 403.
+    const gated = () => {
+      document.body.innerHTML = `
+        <a id="projects" data-reveal-permission="projects:read" hidden>Projekte</a>
+        <a id="manage" data-reveal-permission="projects:manage" hidden>Projekte verwalten</a>
+        <section id="tile" class="widget-slot" data-reveal-permission="shop:read" hidden></section>
+        <section id="shop-settings" class="tds-settings-section" data-reveal-for="platform-admin" hidden></section>
+        <p id="empty" data-settings-empty hidden>Nichts</p>
+      `;
+    };
+    const member = { userId: 2, email: "k@b.test", isAdmin: false, permissions: ["projects:read"], companies: [{ companyId: 1, isCompanyAdmin: false }] };
+
+    it("reveals only what the active company grants", async () => {
+      gated();
+      await run(member);
+      expect(hidden("projects")).toBe(false);
+      expect(hidden("manage")).toBe(true);
+      expect(hidden("tile")).toBe(true);
+    });
+
+    it("lets a platform admin see everything", async () => {
+      gated();
+      await run({ ...member, isAdmin: true, permissions: [] });
+      expect(hidden("manage")).toBe(false);
+      expect(hidden("tile")).toBe(false);
+      expect(hidden("shop-settings")).toBe(false);
+      expect(hidden("empty")).toBe(true);
+    });
+
+    it("says so on Einstellungen when no section is left", async () => {
+      gated();
+      await run(member);
+      expect(hidden("shop-settings")).toBe(true);
+      expect(hidden("empty")).toBe(false);
+    });
+
+    it("corrects a stale cache in both directions", async () => {
+      // Another account signed in on this browser: the cached grant paints the
+      // admin's rows first, and the live /me takes them away again.
+      localStorage.setItem("tds_customer_reveal", JSON.stringify({ flags: { "platform-admin": true }, admin: true, permissions: [] }));
+      gated();
+      await run(member);
+      expect(hidden("manage")).toBe(true);
+      expect(hidden("shop-settings")).toBe(true);
+      expect(JSON.parse(localStorage.getItem("tds_customer_reveal") ?? "{}").admin).toBe(false);
+    });
+
+    it("hides what a cache painted when /me fails", async () => {
+      localStorage.setItem("tds_customer_reveal", JSON.stringify({ flags: {}, admin: true, permissions: [] }));
+      gated();
+      await run(null);
+      expect(hidden("manage")).toBe(true);
+    });
   });
 
   it("costs no request when the page has no such row", async () => {
