@@ -23,8 +23,9 @@ const payload = {
   sites: [
     { id: "blog", label: "Blog", origins: [] },
     { id: "landingpage", label: "Landingpage", origins: [] },
+    { id: "tools", label: "Tools", origins: [] },
   ],
-  sitemap_exclusions: { blog: ["/tag/*"] },
+  sitemap_exclusions: { blog: ["/tag/*"], tools: ["/legacy"] },
   sitemap_exclusion_limits: { max_per_site: 200, max_length: 255 },
 };
 
@@ -49,6 +50,8 @@ describe("SitemapSettings", () => {
     render(<SitemapSettings />);
     expect(((await screen.findByLabelText("Blog")) as HTMLTextAreaElement).value).toBe("/tag/*");
     expect((screen.getByLabelText("Landingpage") as HTMLTextAreaElement).value).toBe("");
+    // Tools does not read the list, so it gets no field that would promise an effect.
+    expect(screen.queryByLabelText("Tools")).toBeNull();
   });
 
   it("sends every site on save — an emptied list as []", async () => {
@@ -59,7 +62,8 @@ describe("SitemapSettings", () => {
     await userEvent.type(screen.getByLabelText("Landingpage"), "/preise{enter}  /legal/* ");
     await userEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(fn.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
-    expect(putBody(fn).sitemap_exclusions).toEqual({ blog: [], landingpage: ["/preise", "/legal/*"] });
+    // A site without a field keeps what it had — the PUT replaces the map.
+    expect(putBody(fn).sitemap_exclusions).toEqual({ blog: [], landingpage: ["/preise", "/legal/*"], tools: ["/legacy"] });
   });
 
   it("keeps rejected paths on screen with their reason", async () => {

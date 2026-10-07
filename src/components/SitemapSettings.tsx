@@ -21,6 +21,14 @@ interface Rejected {
 
 const ENDPOINT = `${API_BASE}/admin/sites`;
 
+/**
+ * The sites that actually READ the list (`src/lib/sitemapExclusions.ts` in the
+ * landingpage and the blog). The registry also knows tools, the shop, the card
+ * app and the login — offering a field there would promise an effect nobody
+ * delivers. Add a site here when it starts reading `/content/sitemap-exclusions`.
+ */
+const READS_EXCLUSIONS = new Set(["landingpage", "blog"]);
+
 const CACHE_LABEL: Record<string, string> = {
   refreshed: "Sitemap neu erzeugt",
   not_configured: "nicht gekoppelt — wirkt beim nächsten Rendern",
@@ -56,6 +64,7 @@ export default function SitemapSettings() {
   const [rejected, setRejected] = useState<Rejected[]>([]);
   const [cache, setCache] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [stored, setStored] = useState<Record<string, string[]>>({});
 
   const apply = (data: Pick<SitesPayload, "sitemap_exclusions">, list: Site[]) => {
     const next: Record<string, string> = {};
@@ -76,9 +85,12 @@ export default function SitemapSettings() {
           return;
         }
         const data = (await res.json()) as SitesPayload;
-        const list = (data.sites ?? []).map((s) => ({ id: s.id, label: s.label }));
+        const list = (data.sites ?? [])
+          .filter((s) => READS_EXCLUSIONS.has(s.id))
+          .map((s) => ({ id: s.id, label: s.label }));
         setSites(list);
         setLimits(data.sitemap_exclusion_limits ?? null);
+        setStored(data.sitemap_exclusions ?? {});
         apply(data, list);
       } catch {
         setError("Sites konnten nicht geladen werden — die API ist nicht erreichbar.");
@@ -93,7 +105,8 @@ export default function SitemapSettings() {
     setRejected([]);
     setCache({});
     try {
-      const body: Record<string, string[]> = {};
+      // Sites without a field keep whatever they had: the PUT replaces the map.
+      const body: Record<string, string[]> = { ...stored };
       for (const site of sites) body[site.id] = lines(drafts[site.id] ?? "");
       const res = await frontendFetch(ENDPOINT, {
         method: "PUT",
@@ -109,7 +122,10 @@ export default function SitemapSettings() {
         );
         return;
       }
-      if (data.sitemap_exclusions) apply({ sitemap_exclusions: data.sitemap_exclusions }, sites);
+      if (data.sitemap_exclusions) {
+        setStored(data.sitemap_exclusions);
+        apply({ sitemap_exclusions: data.sitemap_exclusions }, sites);
+      }
       setRejected(data.rejected ?? []);
       setCache(data.cache_status ?? {});
       if ((data.rejected ?? []).length > 0) toast.warning("Gespeichert — einzelne Pfade wurden abgelehnt.");
