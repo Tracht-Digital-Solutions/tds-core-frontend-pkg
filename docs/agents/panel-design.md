@@ -16,8 +16,9 @@ hand-author a radius or colour and don't re-declare a shared class**; set a toke
 | Mobile drawer | `.nav-drawer` / `-backdrop` / `-panel` | Same surface and remap as the rail |
 | Nav row | `.nav-item` + `__icon` / `__label` | Hue from the section's `--nav-hue` |
 | Active nav | `.nav-item--active` + `aria-current="page"` | Resolved from `Astro.url.pathname` |
-| Page canvas | `.panel-main` | Accent-tinted warm canvas with two soft brand fields |
+| Page canvas | `.panel-main` | Accent-tinted warm canvas with two soft brand fields; `lg:px-10` matches `.panel-topbar`'s inline padding |
 | Page head accent | `.tds-page__head::before` | Three-part brand bar starting with `--tds-panel-accent` |
+| Dashboard | `.tds-page` around head + `.dashboard-grid` | Same head-to-content gap as every other page |
 | Widget slot | `.widget-slot` + `__icon` | Carries `--tds-widget-hue` |
 
 ## Colour assignment (`lib/panelHues.ts`)

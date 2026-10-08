@@ -12,72 +12,74 @@ import { widgets } from "virtual:frontend-widgets";
 ---
 
 <Layout title="Dashboard">
-  <div class="tds-page__head">
-    <div>
-      <p class="tds-page__eyebrow">Übersicht</p>
-      <h1 class="tds-page__title">Dashboard</h1>
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <div>
+        <p class="tds-page__eyebrow">Übersicht</p>
+        <h1 class="tds-page__title">Dashboard</h1>
+      </div>
+      <div class="tds-toolbar" data-dashboard-toolbar>
+        <button type="button" class="btn btn-ghost" data-dashboard-edit hidden>Anpassen</button>
+        <button type="button" class="btn btn-primary" data-dashboard-save hidden>Speichern</button>
+        <button type="button" class="btn btn-ghost" data-dashboard-cancel hidden>Abbrechen</button>
+      </div>
     </div>
-    <div class="tds-toolbar" data-dashboard-toolbar>
-      <button type="button" class="btn btn-ghost" data-dashboard-edit hidden>Anpassen</button>
-      <button type="button" class="btn btn-primary" data-dashboard-save hidden>Speichern</button>
-      <button type="button" class="btn btn-ghost" data-dashboard-cancel hidden>Abbrechen</button>
-    </div>
-  </div>
 
-  {/* Each widget's title is an h3 (`.tds-widget__title`, owned by its
-      extension). Without a level between them and the page's h1, a screen
-      reader's heading list jumped from 1 to 3. */}
-  <h2 class="sr-only">Kacheln</h2>
+    {/* Each widget's title is an h3 (`.tds-widget__title`, owned by its
+        extension). Without a level between them and the page's h1, a screen
+        reader's heading list jumped from 1 to 3. */}
+    <h2 class="sr-only">Kacheln</h2>
 
-  <div class="dashboard-grid" data-dashboard-grid>
-    {
-      widgets.map((widget) => {
-        const Widget = widget.Component as any;
-        const title = (widget as any).title ?? widget.id;
-        return (
-          <section
-            class="widget-slot"
-            data-widget={widget.id}
-            data-size={widget.size}
-            data-label={title}
-            data-reveal-permission={(widget as any).permission}
-            hidden={(widget as any).permission !== undefined}
-            style={`--tds-widget-hue: ${hueForKey(widget.id)}`}
-          >
-            <div class="widget-slot__controls">
-              <span class="widget-slot__handle" title="Ziehen zum Sortieren" aria-hidden="true">
-                ⠿
+    <div class="dashboard-grid" data-dashboard-grid>
+      {
+        widgets.map((widget) => {
+          const Widget = widget.Component as any;
+          const title = (widget as any).title ?? widget.id;
+          return (
+            <section
+              class="widget-slot"
+              data-widget={widget.id}
+              data-size={widget.size}
+              data-label={title}
+              data-reveal-permission={(widget as any).permission}
+              hidden={(widget as any).permission !== undefined}
+              style={`--tds-widget-hue: ${hueForKey(widget.id)}`}
+            >
+              <div class="widget-slot__controls">
+                <span class="widget-slot__handle" title="Ziehen zum Sortieren" aria-hidden="true">
+                  ⠿
+                </span>
+                <button
+                  type="button"
+                  class="btn btn-ghost widget-slot__move"
+                  data-widget-move="up"
+                  aria-label={`${title} nach vorne schieben`}
+                >
+                  <Icon name="chevron-up" size={16} />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost widget-slot__move"
+                  data-widget-move="down"
+                  aria-label={`${title} nach hinten schieben`}
+                >
+                  <Icon name="chevron-down" size={16} />
+                </button>
+                <label class="widget-slot__toggle">
+                  <input type="checkbox" data-widget-visible checked />
+                  <span>{title}</span>
+                </label>
+              </div>
+              <span class="widget-slot__icon" aria-hidden="true">
+                <Icon name={widgetIcon(widget.id)} size={16} />
               </span>
-              <button
-                type="button"
-                class="btn btn-ghost widget-slot__move"
-                data-widget-move="up"
-                aria-label={`${title} nach vorne schieben`}
-              >
-                <Icon name="chevron-up" size={16} />
-              </button>
-              <button
-                type="button"
-                class="btn btn-ghost widget-slot__move"
-                data-widget-move="down"
-                aria-label={`${title} nach hinten schieben`}
-              >
-                <Icon name="chevron-down" size={16} />
-              </button>
-              <label class="widget-slot__toggle">
-                <input type="checkbox" data-widget-visible checked />
-                <span>{title}</span>
-              </label>
-            </div>
-            <span class="widget-slot__icon" aria-hidden="true">
-              <Icon name={widgetIcon(widget.id)} size={16} />
-            </span>
-            <Widget />
-          </section>
-        );
-      })
-    }
-  </div>
+              <Widget />
+            </section>
+          );
+        })
+      }
+    </div>
+  </section>
 
   <!-- Edit-mode-only chrome. Raw body (never wrap an Astro inline style in
        {`...`} — that leaks literal braces into dist). The grid itself and the
