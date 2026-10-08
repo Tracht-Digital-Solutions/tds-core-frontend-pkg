@@ -36,7 +36,7 @@
   "peerDependencies": {
     "@astrojs/react": ">=6",
     "@tailwindcss/postcss": ">=4",
-    "@tracht-digital-solutions/tds-shared": ">=0.38.8 <1",
+    "@tracht-digital-solutions/tds-shared": ">=0.49.6 <1",
     "astro": ">=6",
     "react": ">=18",
     "react-dom": ">=18",
@@ -46,7 +46,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.6",
-    "@tracht-digital-solutions/tds-shared": "^0.48.0",
+    "@tracht-digital-solutions/tds-shared": "^0.49.6",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",

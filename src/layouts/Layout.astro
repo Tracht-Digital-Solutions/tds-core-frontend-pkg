@@ -14,7 +14,7 @@ import {
   ThemeToggle,
   ToastHost,
 } from "@tracht-digital-solutions/tds-shared/components";
-import { themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
+import { errorBounceScript, themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 // Client-side navigation. See the CLIENT-SIDE NAVIGATION note further down for
 // the four things it changes about how this shell has to be written.
 import { ClientRouter } from "astro:transitions";
@@ -342,6 +342,8 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
         pre-paint auth gate below: the gate's spinner is painted in the theme's
         colours, so a theme applied after it would flash the wrong backdrop. */}
     <script is:inline set:html={themeBootstrapScript} />
+    {/* Errors shake: a refused field, an alert or error toast appearing, the button that sent it (tds-shared). */}
+    <script is:inline set:html={errorBounceScript} />
 
     <link rel="preconnect" href="https://api.tracht-digital.de" crossorigin />
     <title>{title}</title>
