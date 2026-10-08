@@ -17,3 +17,6 @@ Desktop.ini
 
 # Windows-generated lockfile; CI installs with --no-package-lock
 package-lock.json
+
+# Local agent state
+.claude/
