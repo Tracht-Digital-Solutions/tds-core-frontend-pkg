@@ -73,6 +73,7 @@ const HUES: Record<string, string> = {
   "documents-count": "var(--color-info)",
   "messages-unread": "var(--color-cat-rose)",
   "tools-status": "var(--color-cat-violet)",
+  "analytics-visits": "var(--color-info)",
 };
 
 /**
@@ -94,6 +95,7 @@ const WIDGET_ICONS: Record<string, string> = {
   "documents-count": "file-text",
   "messages-unread": "message-square",
   "tools-status": "wrench",
+  "analytics-visits": "chart-line",
 };
 
 /**
