@@ -31,7 +31,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@fontsource/lato": "^5.2.7",
-    "@tracht-digital-solutions/tds-frontend-contract": "^1.11.0"
+    "@tracht-digital-solutions/tds-frontend-contract": "^1.14.0"
   },
   "peerDependencies": {
     "@astrojs/react": ">=6",

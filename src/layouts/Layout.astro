@@ -21,6 +21,7 @@ import { ClientRouter } from "astro:transitions";
 import BrandWordmark from "../components/BrandWordmark.astro";
 import Icon from "../components/Icon.astro";
 import UserMenu from "../components/UserMenu.tsx";
+import SetupBanner from "../components/SetupBanner.tsx";
 import NavList, { type NavSection } from "../components/NavList.astro";
 import { groupLabel, hueForKey, normaliseGroup } from "../lib/panelHues";
 import { registry } from "virtual:frontend-registry";
@@ -118,6 +119,19 @@ const baseNav: NavInput[] = [
     revealFor: "platform-admin",
   },
 ];
+
+// The setup wizard sits next to the settings it links into. Admin product only:
+// every item names a platform credential, and the portal has nothing to set up.
+if (FRONTEND_TARGET === "admin") {
+  baseNav.push({
+    href: "/einrichtung",
+    label: "Einrichtung",
+    id: "einrichtung",
+    icon: "list-checks",
+    order: 4.5,
+    revealFor: "platform-admin",
+  });
+}
 
 // Module lists the code composed into this build and the locally installed API
 // packages. It is read-only: releases and deploys stay in the repositories.
@@ -581,6 +595,7 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
               transition:animate={mainTransition}
             >
               <div class="mx-auto w-full max-w-[90rem]">
+                {FRONTEND_TARGET === "admin" ? <SetupBanner client:only="react" /> : null}
                 <slot />
               </div>
             </main>

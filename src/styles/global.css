@@ -54,3 +54,15 @@
      is what the design library exists to remove.
    - `.panel-nav__group-label`, the only component class this host owned. It is
      `.nav-group-label` in app.css now, next to the rest of the sidebar chrome. */
+
+/* Setup wizard: the reminder line above the page content and its nav count. */
+.setup-banner {
+  margin-bottom: 1.5rem;
+}
+.setup-nav-count {
+  margin-left: 0.25rem;
+}
+/* Wizard jump targets land below the sticky top bar, not under it. */
+[id^="settings-"] {
+  scroll-margin-top: 5rem;
+}

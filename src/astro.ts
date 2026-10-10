@@ -50,6 +50,8 @@ const BASE_ROUTES: ReadonlyArray<{
   { pattern: "/firma", entrypoint: `${PKG}/src/pages/firma.astro` },
   { pattern: "/module", entrypoint: `${PKG}/src/pages/module.astro` },
   { pattern: "/einstellungen", entrypoint: `${PKG}/src/pages/einstellungen.astro` },
+  // The setup wizard: unconfigured functions across the base and every module.
+  { pattern: "/einrichtung", entrypoint: `${PKG}/src/pages/einrichtung.astro` },
   { pattern: "/wiki", entrypoint: `${PKG}/src/pages/wiki.astro` },
   // Astro treats an injected route whose pattern is exactly "/404" as THE 404
   // route (it matches on the route string), so the products need no `src/` of

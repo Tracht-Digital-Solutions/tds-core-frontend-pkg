@@ -1,0 +1,23 @@
+---
+// Einrichtungsassistent — what is not set up yet, across the base and every
+// composed module (GET /me/setup-status). Each item links to where it is set
+// up; the page itself edits nothing but the user's "Später" / "Ignorieren".
+import Layout from "../layouts/Layout.astro";
+import SetupWizard from "../components/SetupWizard.tsx";
+---
+
+<Layout title="Einrichtung">
+  <section class="tds-page">
+    <div class="tds-page__head">
+      <div>
+        <p class="tds-page__eyebrow">Konfiguration</p>
+        <h1 class="tds-page__title">Einrichtung</h1>
+        <p class="tds-page__lede">
+          Was im System noch nicht eingerichtet ist. Nicht eingerichtete Funktionen melden keinen Fehler,
+          sie tun einfach nichts — deshalb stehen sie hier.
+        </p>
+      </div>
+    </div>
+    <SetupWizard client:load />
+  </section>
+</Layout>

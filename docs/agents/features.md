@@ -127,3 +127,12 @@ platform admin (no memberships) doesn't see it; by URL they get a company picker
 
 "Suchmaschinen (Sitemap)" edits per-site `sitemap_exclusions` via `PUT /admin/sites`, which replaces the whole map,
 so every site's list is sent on each save.
+
+## Setup wizard (`/einrichtung`)
+
+Admin product only. `lib/setupStatus.ts` reads `GET /me/setup-status` (base + every module's
+`SetupStatusSource`) and posts "Später" / "Ignorieren" / "Zurückholen". Three consumers share one
+request per page load (5-second window, because module state survives ClientRouter swaps):
+`SetupWizard` (the page), `SetupBanner` (line above every page plus the count on the nav row) and
+the markers in `/einstellungen`. Settings sections carry `id="settings-<id>"`; the page waits for
+revealNav to unhide the target and keeps it anchored while islands above it load.

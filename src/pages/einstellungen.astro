@@ -34,7 +34,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
     <div class="settings-list flex flex-col gap-6">
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="mail" data-reveal-for="platform-admin" hidden>
+          <section class="tds-settings-section" id="settings-mail" data-settings="mail" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
             <MailSettings client:load />
           </section>
@@ -42,7 +42,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       }
       {
         showAdminSettings ? (
-          <section class="tds-settings-section" data-settings="stripe" data-reveal-for="platform-admin" hidden>
+          <section class="tds-settings-section" id="settings-stripe" data-settings="stripe" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">Zahlungen (Stripe)</h2>
             <StripeSettings client:load />
           </section>
@@ -51,11 +51,11 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       {
         showAdminSettings ? (
           <>
-          <section class="tds-settings-section" data-settings="cors" data-reveal-for="platform-admin" hidden>
+          <section class="tds-settings-section" id="settings-cors" data-settings="cors" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">CORS / Freigegebene Origins</h2>
             <CorsSettings client:load />
           </section>
-          <section class="tds-settings-section" data-settings="sitemap" data-reveal-for="platform-admin" hidden>
+          <section class="tds-settings-section" id="settings-sitemap" data-settings="sitemap" data-reveal-for="platform-admin" hidden>
             <h2 class="tds-settings-section__title">Suchmaschinen (Sitemap)</h2>
             <SitemapSettings client:visible />
           </section>
@@ -68,6 +68,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
           return (
             <section
               class="tds-settings-section"
+              id={`settings-${panel.id}`}
               data-settings={panel.id}
               data-reveal-permission={panel.permission}
               data-reveal-for={panel.permission ? undefined : "platform-admin"}
@@ -82,3 +83,61 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
     </div>
   </section>
 </Layout>
+
+<script>
+  // Anchors for the setup wizard (`/einstellungen#settings-<id>`) and a
+  // "nicht eingerichtet" chip on every section that still has an open item.
+  //
+  // Sections render `hidden` until revealNav applies the account's rights, so
+  // a browser's own jump to the anchor lands on nothing; this waits for the
+  // section to be shown and then scrolls to it.
+  import { loadSetupStatus, unconfiguredSections } from "../lib/setupStatus";
+
+  async function markSections() {
+    const status = await loadSetupStatus();
+    if (!status) return;
+    for (const [id, items] of unconfiguredSections(status)) {
+      const title = document.querySelector(`#settings-${CSS.escape(id)} .tds-settings-section__title`);
+      if (!title || title.querySelector(".setup-missing")) continue;
+      const chip = document.createElement("span");
+      chip.className = "chip chip--warning setup-missing";
+      chip.textContent = "nicht eingerichtet";
+      chip.title = items.map((item) => item.title).join(" · ");
+      title.append(" ", chip);
+    }
+  }
+
+  function scrollToAnchor() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id.startsWith("settings-")) return;
+    const target = document.getElementById(id);
+    if (!target) return;
+    const started = performance.now();
+    // The sections above load their islands AFTER the jump and grow, which
+    // pushed the target out of view again. Keep it anchored while the layout
+    // settles — until the reader scrolls on their own.
+    let userMoved = false;
+    const stop = () => (userMoved = true);
+    for (const type of ["wheel", "touchstart", "keydown"]) {
+      window.addEventListener(type, stop, { once: true, passive: true });
+    }
+    let shownAt = 0;
+    const tick = () => {
+      const now = performance.now();
+      if (userMoved || now - started > 6000) return;
+      if (!target.hidden) {
+        if (shownAt === 0) shownAt = now;
+        if (Math.abs(target.getBoundingClientRect().top) > 4) target.scrollIntoView({ block: "start" });
+        if (now - shownAt > 2000) return;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  document.addEventListener("astro:page-load", () => {
+    if (!location.pathname.startsWith("/einstellungen")) return;
+    void markSections();
+    scrollToAnchor();
+  });
+</script>

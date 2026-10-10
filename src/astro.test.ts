@@ -48,13 +48,15 @@ describe("integration envelope", () => {
 });
 
 describe("injected routes", () => {
-  it("injects the seven base pages plus the two error pages", () => {
+  it("injects the eight base pages plus the two error pages", () => {
     expect(injectedRoutes().map((r) => r.pattern).sort()).toEqual([
       "/",
       // Astro matches its 404 handling on this exact route string, so injecting
       // it is what gives a product a branded not-found without any `src/`.
       "/404",
       "/500",
+      // The setup wizard; the nav row is admin-product only.
+      "/einrichtung",
       "/einstellungen",
       // Only useful to a company admin; the nav row unhides itself against /me.
       "/firma",
@@ -116,7 +118,7 @@ describe("injected routes", () => {
     // The inventory step needs `config.root` + `updateConfig`; the routes must
     // not depend on it. A guard placed before the loop would take the whole
     // base panel down in any context that supplies a partial hook argument.
-    expect(injectedRoutes().length).toBe(9);
+    expect(injectedRoutes().length).toBe(10);
   });
 });
 
