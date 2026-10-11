@@ -14,7 +14,7 @@ import {
   ThemeToggle,
   ToastHost,
 } from "@tracht-digital-solutions/tds-shared/components";
-import { errorBounceScript, themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
+import { errorBounceScript, offscreenAnimationScript, themeBootstrapScript } from "@tracht-digital-solutions/tds-shared/astro";
 // Client-side navigation. See the CLIENT-SIDE NAVIGATION note further down for
 // the four things it changes about how this shell has to be written.
 import { ClientRouter } from "astro:transitions";
@@ -358,6 +358,8 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
     <script is:inline set:html={themeBootstrapScript} />
     {/* Errors shake: a refused field, an alert or error toast appearing, the button that sent it (tds-shared). */}
     <script is:inline set:html={errorBounceScript} />
+    {/* Endless animations rest while they are off screen (tds-shared >= 0.54). */}
+    <script is:inline set:html={offscreenAnimationScript} />
 
     <link rel="preconnect" href="https://api.tracht-digital.de" crossorigin />
     <title>{title}</title>
