@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FormAlert, Spinner, toast } from "@tracht-digital-solutions/tds-shared/components";
+import { copyText } from "@tracht-digital-solutions/tds-shared/clipboard";
 import { API_BASE, frontendFetch } from "../lib/auth";
 
 interface Webhook {
@@ -123,12 +124,9 @@ export default function StripeSettings() {
   };
 
   const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Adresse kopiert.");
-    } catch {
-      toast.info(text);
-    }
+    // Not copied: show the address so it can be copied by hand.
+    if (await copyText(text)) toast.success("Adresse kopiert.");
+    else toast.info(text);
   };
 
   if (!loaded) return <Spinner />;

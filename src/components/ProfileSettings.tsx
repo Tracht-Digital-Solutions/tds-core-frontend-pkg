@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Avatar,
   FormAlert,
   Spinner,
+  TabPanel,
+  Tabs,
   toast,
 } from "@tracht-digital-solutions/tds-shared/components";
 import {
@@ -11,6 +14,7 @@ import {
 } from "@tracht-digital-solutions/tds-shared/theme";
 import type { ThemePreference } from "@tracht-digital-solutions/tds-shared/design";
 import { Presence, TabIndicator } from "@tracht-digital-solutions/tds-shared/motion/react";
+import { formatDateTime } from "@tracht-digital-solutions/tds-shared/format";
 
 import {
   AUTH_API_URL,
@@ -115,11 +119,7 @@ async function downscale(file: File): Promise<Blob> {
   }
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value.replace(" ", "T"));
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
-}
+const formatDate = (value: string): string => formatDateTime(value, { style: "medium", fallback: value });
 
 export default function ProfileSettings() {
   const [tab, setTab] = useState<Tab>("profil");
@@ -314,7 +314,7 @@ export default function ProfileSettings() {
   }
 
   if (loadError || !me) {
-    return <p className="tds-alert tds-alert--danger" role="alert">{loadError || "Profil nicht verfügbar."}</p>;
+    return <Alert>{loadError || "Profil nicht verfügbar."}</Alert>;
   }
 
   const label = me.label ?? me.name ?? me.email;
@@ -322,23 +322,17 @@ export default function ProfileSettings() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="tds-toolbar" role="tablist" aria-label="Bereiche">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            className={`chip tds-tab ${tab === t.id ? "chip--info" : "chip--neutral"}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-            {tab === t.id ? <TabIndicator group="profil" /> : null}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Bereiche"
+        idPrefix="profil"
+        tabs={TABS.map((t) => [t.id, t.label] as const)}
+        value={tab}
+        onChange={setTab}
+        decorate={(_id, active) => (active ? <TabIndicator group="profil" /> : null)}
+      />
 
       {/* One area at a time, cross-faded on a tab change. */}
+      <TabPanel idPrefix="profil" id={tab} active>
       <Presence view={tab}>
         {tab === "profil" && (
           <div className="tds-card" style={{ padding: "1.25rem" }}>
@@ -573,6 +567,7 @@ export default function ProfileSettings() {
           </div>
         )}
       </Presence>
+      </TabPanel>
     </div>
   );
 }

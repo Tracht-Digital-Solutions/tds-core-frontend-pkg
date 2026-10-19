@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TabPanel, Tabs } from "@tracht-digital-solutions/tds-shared/components";
 
 import CompanyQuotasAdmin from "./CompanyQuotasAdmin";
 import GroupsAdmin from "./GroupsAdmin";
@@ -39,33 +40,23 @@ export default function AccessAdmin() {
 
   return (
     <div className="space-y-6">
-      {/* `.chip` is the accepted alternative to `.btn` for tab controls. */}
-      <div className="tds-toolbar" role="tablist" aria-label="Zugriffsverwaltung">
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            id={`access-tab-${entry.id}`}
-            aria-selected={tab === entry.id}
-            aria-controls={`access-panel-${entry.id}`}
-            className={`chip ${tab === entry.id ? "chip--info" : "chip--neutral"}`}
-            onClick={() => show(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Zugriffsverwaltung"
+        idPrefix="access"
+        tabs={TABS.map((entry) => [entry.id, entry.label] as const)}
+        value={tab}
+        onChange={show}
+      />
 
-      <div role="tabpanel" id="access-panel-users" aria-labelledby="access-tab-users" hidden={tab !== "users"}>
+      <TabPanel idPrefix="access" id="users" active={tab === "users"}>
         {seen.includes("users") && <UsersAdmin />}
-      </div>
-      <div role="tabpanel" id="access-panel-groups" aria-labelledby="access-tab-groups" hidden={tab !== "groups"}>
+      </TabPanel>
+      <TabPanel idPrefix="access" id="groups" active={tab === "groups"}>
         {seen.includes("groups") && <GroupsAdmin />}
-      </div>
-      <div role="tabpanel" id="access-panel-quotas" aria-labelledby="access-tab-quotas" hidden={tab !== "quotas"}>
+      </TabPanel>
+      <TabPanel idPrefix="access" id="quotas" active={tab === "quotas"}>
         {seen.includes("quotas") && <CompanyQuotasAdmin />}
-      </div>
+      </TabPanel>
     </div>
   );
 }
