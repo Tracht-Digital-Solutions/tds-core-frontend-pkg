@@ -30,6 +30,10 @@ so a login there is valid here immediately.
 extension calls via `apiFetch` too: confirm against `/me`, try a refresh, only then log out. A scoped 401 while
 `/me` still succeeds returns to the caller (`auth.test.ts`); never inject a blanket `redirectToLogin()`.
 
+`frontendFetch` sends **no** `X-Act-As-Company`. That is correct for its callers: platform settings, per-user
+data (`/me/*`) and auth-api, none of which is company-scoped. A company-scoped call goes through `apiFetch`,
+which carries the shell's `actAsHeaders()`.
+
 **`<meta name="tds-api-base">`** in `Layout.astro`'s `<head>` tells `apiFetch` where the API is. It can't be
 `import.meta.env` (extensions ship as built packages). Without it, relative calls hit the product host's fallback.
 
@@ -40,7 +44,8 @@ extension calls via `apiFetch` too: confirm against `/me`, try a refresh, only t
   change the principal.
 - **Company names come from the composed API** (`GET /me/companies`, tds-ext-customers); auth-api holds only ids.
   Admins have no memberships, so the menu shows the product name and skips the request.
-- `/profil` is injected but absent from the nav; the menu is the way in.
+- `/profil` is injected but absent from the nav; the menu is the way in. The avatar is picked or dropped through
+  tds-shared's `<FileDropZone>`, downscaled in the browser, then posted to auth-api.
 - `Me` uses **`userId`** (not `id`), and `logout()` sends **DELETE** (a POST got a resolved 405 that looked like
   success while the session stayed alive).
 
