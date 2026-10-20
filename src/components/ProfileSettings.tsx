@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -15,6 +15,7 @@ import {
 import type { ThemePreference } from "@tracht-digital-solutions/tds-shared/design";
 import { Presence, TabIndicator } from "@tracht-digital-solutions/tds-shared/motion/react";
 import { formatDateTime } from "@tracht-digital-solutions/tds-shared/format";
+import { FileDropZone } from "@tracht-digital-solutions/tds-shared/dropzone";
 
 import {
   AUTH_API_URL,
@@ -132,7 +133,6 @@ export default function ProfileSettings() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [hasAvatar, setHasAvatar] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const [prefs, setPrefs] = useState<Preferences>({});
   const [theme, setTheme] = useState<ThemePreference>("system");
@@ -236,7 +236,6 @@ export default function ProfileSettings() {
       toast.danger("Bild konnte nicht gespeichert werden (keine Verbindung).");
     } finally {
       setAvatarBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -338,44 +337,32 @@ export default function ProfileSettings() {
           <div className="tds-card" style={{ padding: "1.25rem" }}>
             <div className="tds-row" style={{ alignItems: "center", gap: "1rem" }}>
               <Avatar name={label} src={hasAvatar ? avatarUrl : null} seed={me.userId} size="lg" decorative />
-              <div className="flex flex-col gap-2">
-                <div className="tds-row" style={{ gap: "0.5rem" }}>
+              <div className="flex flex-col gap-2" style={{ flex: "1 1 16rem", minWidth: 0 }}>
+                <FileDropZone
+                  label={avatarBusy ? "Wird hochgeladen …" : "Bild auswählen"}
+                  hint="oder hierher ziehen"
+                  activeLabel="Loslassen zum Hochladen"
+                  accept="image/png,image/jpeg,image/webp"
+                  disabled={avatarBusy}
+                  onFiles={([file]) => void uploadAvatar(file)}
+                  onReject={() => toast.warning("Bitte ein PNG-, JPEG- oder WebP-Bild wählen.")}
+                />
+                {hasAvatar && (
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className="btn btn-ghost self-start"
                     disabled={avatarBusy}
-                    onClick={() => fileRef.current?.click()}
+                    onClick={() => void removeAvatar()}
                   >
-                    {avatarBusy ? <Spinner size="sm" /> : "Bild auswählen"}
+                    Entfernen
                   </button>
-                  {hasAvatar && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={avatarBusy}
-                      onClick={() => void removeAvatar()}
-                    >
-                      Entfernen
-                    </button>
-                  )}
-                </div>
+                )}
                 <p className="text-xs" style={{ color: "var(--color-muted)" }}>
                   PNG, JPEG oder WebP, maximal 2 MB. Das Bild wird vor dem Hochladen
                   automatisch auf {AVATAR_PX}×{AVATAR_PX} Pixel verkleinert.
                 </p>
               </div>
             </div>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadAvatar(file);
-              }}
-            />
 
             <hr className="tds-dropdown__sep" style={{ margin: "1.25rem 0" }} />
 
