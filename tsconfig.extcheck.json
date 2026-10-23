@@ -24,6 +24,10 @@
     "noEmit": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
+    // The islands' vitest suites are in scope too, and vitest runs them in
+    // Node: a test that reads its module's PHP source (`node:fs`, `process`)
+    // is correct and needs the Node types the host's own tsconfig has.
+    "types": ["node"],
     "baseUrl": ".",
     "paths": {
       "react": ["./node_modules/@types/react"],
