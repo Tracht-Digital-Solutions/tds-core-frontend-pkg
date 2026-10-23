@@ -17,37 +17,10 @@
 import Icon from "./Icon.astro";
 import { REVEAL_CACHE_KEY } from "../lib/revealNav";
 
-export interface NavItem {
-  href: string;
-  label: string;
-  /** Extension/base id — the `data-nav` hook. */
-  id?: string | undefined;
-  /** Icon key from the extension's manifest (`NavEntry.icon`). */
-  icon?: string | undefined;
-  active: boolean;
-  /** Link to another property — opens in a new tab, with the usual rel guard. */
-  external?: boolean | undefined;
-  /**
-   * Render the row hidden, to be revealed at runtime.
-   *
-   * The nav is built at BUILD time; whether this person administers a company
-   * is only known once `/me` answers. Rendering the row and unhiding it beats
-   * the alternatives: injecting it client-side would duplicate the markup and
-   * the hue logic, and showing it to everyone would offer a page that 403s.
-   * A visitor who is not a company admin simply never sees it — and the route
-   * itself says so too, rather than relying on the nav to hide it.
-   */
-  revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
-  /** Permission the entry requires (`NavEntry.permission`); hidden until /me holds it. */
-  permission?: string | undefined;
-}
-
-export interface NavSection {
-  label: string;
-  items: NavItem[];
-  /** CSS value for `--nav-hue` — see lib/panelHues.ts. */
-  hue?: string | undefined;
-}
+// The model types live with the code that builds them (lib/navModel.ts);
+// re-exported so existing imports keep working.
+export type { NavItem, NavSection } from "../lib/navModel";
+import type { NavSection } from "../lib/navModel";
 
 interface Props {
   sections: NavSection[];
@@ -61,9 +34,10 @@ const { sections } = Astro.props;
     sections.map((section) => (
       <div
         class="nav-group flex flex-col gap-0.5"
+        data-nav-group={section.key}
         style={section.hue ? `--nav-hue: ${section.hue}` : undefined}
       >
-        <p class="nav-group-label">{section.label}</p>
+        {section.label ? <p class="nav-group-label">{section.label}</p> : null}
         {section.items.map((item) => (
           <a
             class:list={["nav-item", "px-3 py-2", item.active && "nav-item--active"]}

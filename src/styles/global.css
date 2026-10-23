@@ -66,3 +66,172 @@
 [id^="settings-"] {
   scroll-margin-top: 5rem;
 }
+
+/* ── Host-only wayfinding ─────────────────────────────────────────────────
+   The quick search, the settings index and the mobile page title have one
+   consumer (this shell), so they stay here rather than in tds-shared, which
+   promotes a primitive only once two consumers need it. Built on shared
+   classes (.tds-modal, .tds-dropdown__item, .field-boxed); every colour and
+   radius below is a token. */
+
+/* Quick search trigger: left in the top bar, which otherwise pushes its
+   controls to the right. Reads as a field, so it is findable without the
+   shortcut. */
+.quick-nav-trigger {
+  margin-right: auto;
+  gap: 0.5rem;
+  min-width: 14rem;
+  justify-content: flex-start;
+  border: var(--tds-border-hairline) solid var(--color-line);
+  color: var(--color-muted);
+}
+.quick-nav-trigger__kbd,
+.quick-nav__hint kbd {
+  margin-left: auto;
+  padding: 0.0625rem 0.375rem;
+  border: var(--tds-border-hairline) solid var(--color-line);
+  border-radius: var(--tds-radius-xs);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+}
+.quick-nav__hint kbd {
+  margin-left: 0;
+}
+
+/* The dialog: wider than a confirmation and nearer the top, so the list
+   grows downwards instead of re-centring on every keystroke. */
+.quick-nav {
+  width: min(100% - 2rem, 36rem);
+  margin-top: 12vh;
+}
+.quick-nav__panel {
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+.quick-nav__list {
+  max-height: min(60dvh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* The active option looks exactly like a hovered menu row. */
+.quick-nav__option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.quick-nav__option {
+  text-decoration: none;
+}
+.quick-nav__meta {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+.quick-nav__option .quick-nav__meta + .quick-nav__meta {
+  margin-left: 0.5rem;
+}
+.quick-nav__empty {
+  padding: 1rem 0.625rem;
+}
+.quick-nav__hint {
+  margin: 0;
+  font-size: 0.75rem;
+}
+@media (pointer: coarse) {
+  /* No keyboard to hint at. */
+  .quick-nav__hint {
+    display: none;
+  }
+}
+
+/* Mobile header: the page you are on. On a phone there is no room for the
+   wordmark AND the title beside four buttons (the title shrank to nothing at
+   390px), so the wordmark yields — the drawer still carries it. From 40rem
+   both fit: "Tracht Panel / Tickets". */
+.mobile-page-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.mobile-page-title::before {
+  content: "/";
+  margin-right: 0.5rem;
+  color: var(--color-line);
+}
+.mobile-brand {
+  flex: none;
+}
+@media (max-width: 39.99rem) {
+  .mobile-brand {
+    display: none;
+  }
+  .mobile-page-title::before {
+    content: none;
+  }
+}
+
+/* Einstellungen: a section index beside the list from xl, above it below. */
+.settings-index ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+.settings-index li[hidden] {
+  display: none;
+}
+.settings-index__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+.settings-index__link:hover {
+  color: var(--color-ink);
+}
+.settings-index__link[aria-current="true"] {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+@media (min-width: 80rem) {
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 14rem minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .settings-index {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+  }
+  .settings-index ul {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0;
+    margin: 0;
+  }
+  .settings-index__link {
+    display: flex;
+    padding: 0.375rem 0.75rem;
+    border-left: 2px solid var(--color-line);
+  }
+  .settings-index__link[aria-current="true"] {
+    border-left-color: var(--tds-panel-accent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .settings-index__link {
+    transition: color var(--tds-dur-fast) var(--tds-ease-out);
+  }
+}

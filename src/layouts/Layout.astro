@@ -22,8 +22,11 @@ import BrandWordmark from "../components/BrandWordmark.astro";
 import Icon from "../components/Icon.astro";
 import UserMenu from "../components/UserMenu.tsx";
 import SetupBanner from "../components/SetupBanner.tsx";
-import NavList, { type NavSection } from "../components/NavList.astro";
-import { groupLabel, hueForKey, normaliseGroup } from "../lib/panelHues";
+import NavList from "../components/NavList.astro";
+import QuickNav from "../components/QuickNav.tsx";
+import { activeLabel, buildNavSections, type NavInput } from "../lib/navModel";
+import { quickEntries } from "../lib/quickNav";
+import { settingsSections } from "../lib/settingsSections";
 import { registry } from "virtual:frontend-registry";
 // BRAND_SUFFIX is deliberately NOT imported here — it is consumed only by
 // <BrandWordmark />, which keeps the shell's single per-target value in one place.
@@ -53,30 +56,14 @@ const authApiUrl =
   (import.meta.env.PUBLIC_AUTH_API_URL as string | undefined) ??
   "https://api.tracht-digital.de/auth";
 
-// One entry as the nav model carries it, before active-state resolution.
-interface NavInput {
-  href: string;
-  label: string;
-  id?: string | undefined;
-  icon?: string | undefined;
-  order: number;
-  /** Nav section. Defaults to BASE_GROUP; set it to join an extension's group. */
-  group?: string | undefined;
-  /** Absolute link to another property — opens in a new tab (see below). */
-  external?: boolean | undefined;
-  /** Render hidden and unhide at runtime — see NavList and `revealNav`. */
-  revealFor?: "company-admin" | "platform-admin" | "company-or-platform-admin" | undefined;
-  /** The extension's `NavEntry.permission` — revealed when /me holds it. */
-  permission?: string | undefined;
-}
-
 // Base-service nav, declared as data so the desktop rail and the mobile drawer
 // render from ONE source instead of two hand-kept copies. The `icon` keys are
 // resolved by components/Icon.astro; `order` keeps these ahead of any
-// extension that targets this same group.
-const BASE_GROUP = "verwaltung";
+// extension that targets this same group. Sections and their order are
+// lib/navModel.ts's: the Dashboard stands alone at the top, configuration
+// (`group: "system"`) closes the rail.
 const baseNav: NavInput[] = [
-  { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0 },
+  { href: "/", label: "Dashboard", id: undefined, icon: "layout-dashboard", order: 0, group: "start" },
   // Platform-admin only, and revealed the same way `/firma` is. It used to hang
   // in the nav of BOTH products unconditionally, so every portal user was
   // invited to a screen whose very first call answers 403.
@@ -100,12 +87,15 @@ const baseNav: NavInput[] = [
   // One route, two wikis (see pages/wiki.astro): the admin build gets the API
   // reference, the portal gets FAQs and handbooks. The label and icon follow the
   // content, because "Wiki" told a customer nothing about what is behind it.
+  // The API reference is platform documentation and closes the System group;
+  // the portal's help is customer content and stays with the account rows.
   {
     href: "/wiki",
     label: FRONTEND_TARGET === "admin" ? "API-Referenz" : "Hilfe",
     id: "wiki",
     icon: FRONTEND_TARGET === "admin" ? "book-open" : "life-buoy",
-    order: 3,
+    order: FRONTEND_TARGET === "admin" ? 6 : 3,
+    group: FRONTEND_TARGET === "admin" ? "system" : undefined,
   },
   // Platform-admin only: every section on that page configures the platform
   // (SMTP, Stripe, CORS and each extension's /admin/settings/*). In the portal
@@ -116,6 +106,7 @@ const baseNav: NavInput[] = [
     id: "einstellungen",
     icon: "settings",
     order: 4,
+    group: "system",
     revealFor: "platform-admin",
   },
 ];
@@ -129,6 +120,7 @@ if (FRONTEND_TARGET === "admin") {
     id: "einrichtung",
     icon: "list-checks",
     order: 4.5,
+    group: "system",
     revealFor: "platform-admin",
   });
 }
@@ -138,7 +130,7 @@ if (FRONTEND_TARGET === "admin") {
 // Admin-product only: the route is injected into both targets (one route list),
 // and the API gates `/admin/modules` on `isAdmin` regardless of who finds it.
 if (FRONTEND_TARGET === "admin") {
-  baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 5 });
+  baseNav.push({ href: "/module", label: "Module", id: "module", icon: "package", order: 5, group: "system" });
 
   // The PUBLIC tools site. It joins the `tools` group so it sits beside the
   // tools extension's own "Tools" entry (`/tools-verwaltung`, the catalog
@@ -158,66 +150,6 @@ if (FRONTEND_TARGET === "admin") {
     external: true,
   });
 }
-
-// Group the composed nav for rendering: extensions contribute { group, order,
-// icon }. Keys are normalised (trimmed + lowercased) so an extension writing
-// "Verwaltung" lands in the SAME section as the base shell instead of growing
-// a duplicate heading with one orphaned link under it. Seeding the map with
-// the base group also fixes the section order: Verwaltung stays first, then
-// extension groups in first-appearance order.
-const groups = new Map<string, NavInput[]>();
-// Seed with the base group's own entries FIRST — that is what pins Verwaltung
-// as the leading section. Base entries naming another group are held back and
-// merged after the extensions, so joining a group never reorders the sections.
-groups.set(
-  BASE_GROUP,
-  baseNav.filter((item) => item.group === undefined),
-);
-const adoptedBaseNav = baseNav.filter((item) => item.group !== undefined);
-for (const item of registry.nav) {
-  const key = normaliseGroup(item.group);
-  const bucket = groups.get(key) ?? [];
-  bucket.push({
-    href: item.href,
-    label: item.label,
-    id: item.id,
-    // `NavEntry.icon` has been in the contract from the start and every
-    // extension declares one; until now the shell dropped it here.
-    icon: item.icon,
-    order: item.order ?? 100,
-    // The contract has always carried it ("Permission id required to see the
-    // entry"), and the shell dropped it here — so a portal user saw
-    // "Projekte verwalten" and "TDShop", whose first calls answer 403.
-    permission: item.permission,
-  });
-  groups.set(key, bucket);
-}
-
-// Base entries that named an extension's group join it now. A group the
-// extensions never created is skipped rather than invented: a section heading
-// with one external link under it and nothing else reads as a bug.
-for (const item of adoptedBaseNav) {
-  const key = normaliseGroup(item.group);
-  const bucket = groups.get(key);
-  if (bucket) bucket.push(item);
-}
-
-// Active-nav resolution. `.nav-item--active` (tinted fill + 2px indicator bar)
-// has always existed in the shared app.css, and the links have always carried
-// `data-nav` — but nothing ever READ either, so the active treatment was dead
-// code and the panel had no wayfinding at all. Compare normalised paths so
-// `trailingSlash: "ignore"` and the `build.format: "directory"` output both
-// match.
-const norm = (p: string) => {
-  const trimmed = p.replace(/\/+$/, "");
-  return trimmed === "" ? "/" : trimmed;
-};
-const here = norm(Astro.url.pathname);
-/** Dashboard matches only exactly; every other entry also matches its subtree. */
-const isActive = (href: string) => {
-  const h = norm(href);
-  return h === "/" ? here === "/" : here === h || here.startsWith(h + "/");
-};
 
 /**
  * SHELL ANATOMY — documented here rather than inline; see the gotcha below.
@@ -278,29 +210,15 @@ const isActive = (href: string) => {
  * notes in frontmatter (like this) or use an HTML comment.
  */
 
-// One resolved nav model, rendered by <NavList> in both the rail and the
-// drawer. Active state is baked in here so the path-normalisation rules stay
-// in this file only; the section `hue` drives `--nav-hue`, which app.css has
-// always read and nothing ever set — that is what makes the rail read as
-// colour-coded zones instead of one grey column.
-const navSections: NavSection[] = [...groups.entries()].map(([key, items]) => ({
-  label: groupLabel(key),
-  hue: hueForKey(key),
-  items: [...items]
-    .sort((a, b) => a.order - b.order)
-    .map((item) => ({
-      href: item.href,
-      label: item.label,
-      id: item.id,
-      icon: item.icon,
-      // An absolute URL can never match a pathname, so this is always false for
-      // an external entry — stated rather than special-cased.
-      active: isActive(item.href),
-      external: item.external,
-      revealFor: item.revealFor,
-      permission: item.permission,
-    })),
-}));
+// One resolved nav model (lib/navModel.ts), rendered by <NavList> in both the
+// rail and the drawer, and flattened for the quick search. Active state and
+// the section hue are resolved there, so NavList stays presentation only.
+const navSections = buildNavSections(baseNav, registry.nav, Astro.url.pathname);
+const quickNav = quickEntries(navSections, settingsSections(registry.settings));
+// The mobile header names the page: below `lg` the rail is gone, and with it
+// the only "you are here". The nav row's label is the short name; the title
+// covers pages the nav does not list ("Profil", a ticket's detail page).
+const pageLabel = activeLabel(navSections) ?? title.split(/\s[—–|]\s/)[0];
 
 // The page swap. tds-shared turns the ROOT cross-fade off (the theme toggle
 // animates root itself), so without this a navigation snapped. Only <main>
@@ -525,8 +443,19 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
                 <path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
               </svg>
             </button>
-            <BrandWordmark />
+            <span class="mobile-brand"><BrandWordmark /></span>
+            <span class="mobile-page-title" aria-hidden="true">{pageLabel}</span>
             <span class="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                class="btn btn-ghost px-2"
+                data-quick-nav-open
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-label="Suchen (Strg+K)"
+              >
+                <Icon name="search" />
+              </button>
               <ThemeToggle client:idle />
               <UserMenu client:idle compact />
             </span>
@@ -587,6 +516,18 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
                would then clip it silently rather than scrolling it. -->
           <div class="flex flex-col min-w-0 flex-1">
             <header class="panel-topbar hidden lg:flex">
+              <button
+                type="button"
+                class="btn btn-ghost quick-nav-trigger"
+                data-quick-nav-open
+                aria-haspopup="dialog"
+                aria-expanded="false"
+                aria-keyshortcuts="Control+K Meta+K"
+              >
+                <Icon name="search" />
+                <span>Suchen …</span>
+                <kbd class="quick-nav-trigger__kbd" aria-hidden="true">Strg K</kbd>
+              </button>
               <ThemeToggle client:idle />
               <UserMenu client:idle />
             </header>
@@ -602,6 +543,7 @@ const mainTransition = { forwards: pageSwap, backwards: pageSwap };
               </div>
             </main>
           </div>
+          <QuickNav client:idle entries={quickNav} />
         </div>
         <script>
           // ─── Per-page-load shell wiring ────────────────────────────────

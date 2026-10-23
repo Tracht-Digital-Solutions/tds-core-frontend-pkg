@@ -73,6 +73,7 @@ describe("hueForKey", () => {
       "work",
       "tools",
       "allgemein",
+      "system",
     ];
     const hues = groups.map((g) => hueForKey(g));
     expect(new Set(hues).size).toBe(groups.length);

@@ -48,13 +48,28 @@ so a new extension is colour-coded without a contract change.
 
 ### Base entries, groups and external links
 
-`baseNav` in `Layout.astro` may name a `group` to join an extension's section.
+`baseNav` in `Layout.astro` may name a `group`; `lib/navModel.ts` (`buildNavSections`, tested) builds the sections.
 
-- **Group order is seeded by the base group, then extension first-appearance**; base entries naming another group
-  merge after the extension loop.
-- **A base entry never invents a group**; if no extension created it, the entry is dropped.
+- **Section order:** `start` (the Dashboard alone, no heading) → `verwaltung` → extension groups in first-appearance
+  order → `system` (Einstellungen, Einrichtung, Module, API-Referenz) last. `start` and `system` are host-owned; an
+  extension naming `system` joins it.
+- **A base entry never invents another group**; if no extension created it, the entry is dropped.
+- **Equal `order` sorts by label** (`localeCompare("de")`), so ties are stable without touching an extension.
 - `external: true` renders `target="_blank"` + `rel="noopener noreferrer"` and "(neuer Tab)" in the tooltip (e.g.
   "Tools-Website" in the `tools` group). Panels open other properties in a new tab because the user is mid-task.
+
+### Wayfinding: quick search, settings index, mobile title
+
+- **Quick search** (`components/QuickNav.tsx`, logic in `lib/quickNav.ts`): Strg/⌘+K, `/` outside a text field, or a
+  `[data-quick-nav-open]` button (top bar, mobile header). Mounted once per page **outside both headers**: a
+  `<dialog>` under a `display: none` ancestor never renders. Entries are every nav row plus every settings section
+  (`lib/settingsSections.ts`, the one list of section titles); visibility uses `isGranted` + `cachedGrant()` from
+  `revealNav.ts`. Results are real links, so Enter goes through the ClientRouter.
+- **Settings index** on `/einstellungen`: a sticky column from `xl`, a wrapped link row below. Each `<li>` carries
+  its section's reveal attributes; scroll-spy sets `aria-current`; `markSections()` adds "offen" to open sections.
+- **Mobile header** shows the active nav row's label (`activeLabel`), falling back to the page title. Below 40rem
+  the wordmark yields to it (the drawer still has the wordmark).
+- These styles live in `src/styles/global.css` (tokens only): one consumer, so not promoted to tds-shared.
 
 ### What a principal sees: `permission` and `revealFor`
 

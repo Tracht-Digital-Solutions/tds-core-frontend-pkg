@@ -38,17 +38,44 @@ export interface RevealGrant {
  */
 export const REVEAL_CACHE_KEY = `${HINT_PREFIX}_reveal`;
 
+/**
+ * Whether `grant` reveals an element gated on `condition` or `permission` —
+ * the rule `applyReveal` applies to markup, for code that filters data
+ * instead (the quick search). Only call it for something that IS gated: with
+ * neither argument it answers "admins only", as a bare attribute always did.
+ */
+export function isGranted(
+  grant: RevealGrant,
+  condition: string | undefined,
+  permission: string | undefined,
+): boolean {
+  if (condition !== undefined && condition !== "") return grant.flags[condition] === true;
+  return grant.admin || (permission !== undefined && grant.permissions.includes(permission));
+}
+
+/** The last grant from localStorage, or null when there is none (or no storage). */
+export function cachedGrant(): RevealGrant | null {
+  try {
+    const raw = localStorage.getItem(REVEAL_CACHE_KEY);
+    if (!raw) return null;
+    const g = JSON.parse(raw) as Partial<RevealGrant> | null;
+    if (!g || typeof g !== "object") return null;
+    return {
+      flags: g.flags && typeof g.flags === "object" ? g.flags : {},
+      admin: g.admin === true,
+      permissions: Array.isArray(g.permissions) ? g.permissions : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Show or hide every gated element under `root` for `grant`. */
 export function applyReveal(grant: RevealGrant, root: ParentNode = document): void {
-  const granted = new Set(grant.permissions);
   for (const row of root.querySelectorAll<HTMLElement>("[data-reveal-for], [data-reveal-permission]")) {
     // Both the rail and the mobile drawer render the same model, so this
     // deliberately walks ALL matches rather than the first.
-    const condition = row.dataset.revealFor;
-    const permission = row.dataset.revealPermission;
-    row.hidden = condition !== undefined && condition !== ""
-      ? grant.flags[condition] !== true
-      : !(grant.admin || (permission !== undefined && granted.has(permission)));
+    row.hidden = !isGranted(grant, row.dataset.revealFor, row.dataset.revealPermission);
   }
   // Einstellungen: say so when nothing is left for this account, rather than
   // showing a heading over an empty page.
@@ -76,12 +103,9 @@ export async function revealNav(): Promise<void> {
   const rows = document.querySelectorAll<HTMLElement>("[data-reveal-for], [data-reveal-permission]");
   if (rows.length === 0) return;
 
-  try {
-    const cached = localStorage.getItem(REVEAL_CACHE_KEY);
-    if (cached) applyReveal(JSON.parse(cached) as RevealGrant);
-  } catch {
-    /* storage disabled or a malformed entry — wait for /me */
-  }
+  // Storage disabled or a malformed entry → null; wait for /me.
+  const cached = cachedGrant();
+  if (cached) applyReveal(cached);
 
   const me = await fetchMe();
   if (me === null) {

@@ -58,6 +58,11 @@ const HUES: Record<string, string> = {
   // theme to signal, and leaving it uncoloured keeps all five categorical
   // hues meaning one real zone each.
   allgemein: "var(--color-muted)",
+  // Platform configuration (Einstellungen, Einrichtung, Module, API-Referenz).
+  // Neutral like the catch-all, but the BRIGHT neutral: inside the rail
+  // `--color-ink` is re-mapped light, so the zone reads as plain white beside
+  // the grey `allgemein`. Configuration has no business colour to signal.
+  system: "var(--color-ink)",
 
   // Dashboard widget ids
   "tickets-open": "var(--color-cat-cyan)",
@@ -112,6 +117,7 @@ const GROUP_LABELS: Record<string, string> = {
   content: "Content",
   work: "Arbeit",
   allgemein: "Allgemein",
+  system: "System",
 };
 
 /**

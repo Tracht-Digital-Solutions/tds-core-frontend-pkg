@@ -9,12 +9,21 @@ import StripeSettings from "../components/StripeSettings.tsx";
 import SitemapSettings from "../components/SitemapSettings.tsx";
 import { settings } from "virtual:frontend-settings";
 import { FRONTEND_TARGET } from "../config/target";
+import { BASE_SETTINGS, sectionReveal, settingsSections } from "../lib/settingsSections";
 
 // Base-service settings render above the extension sections. E-Mail (SMTP) and
 // CORS are admin-product-only. Public-site connections deliberately live inside
 // the settings of the blog, website or tools resource they belong to; GitHub and
 // deployment configuration is a release concern and is never exposed here.
 const showAdminSettings = FRONTEND_TARGET === "admin";
+
+// Base titles come from lib/settingsSections.ts, which the quick search reads
+// too — one spelling per section.
+const baseLabel = (id: string) => BASE_SETTINGS.find((s) => s.id === id)?.label ?? id;
+
+// The section index: one link per section, in page order. Each link carries its
+// section's reveal attributes, so revealNav shows and hides the two together.
+const index = settingsSections(settings).map((section) => ({ ...section, ...sectionReveal(section) }));
 ---
 
 <Layout title="Einstellungen">
@@ -31,11 +40,26 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       Für Ihr Konto gibt es hier nichts einzustellen. Darstellung und Passwort
       ändern Sie im <a href="/profil" class="link-underline">Profil</a>.
     </p>
+    <div class="settings-layout">
+    <nav class="settings-index" aria-label="Abschnitte" data-settings-index>
+      <p class="tds-dropdown__caption">Abschnitte</p>
+      <ul>
+        {
+          index.map((section) => (
+            <li data-reveal-for={section.revealFor} data-reveal-permission={section.permission} hidden>
+              <a class="settings-index__link" href={`#settings-${section.id}`} data-settings-link={section.id}>
+                {section.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
     <div class="settings-list flex flex-col gap-6">
       {
         showAdminSettings ? (
           <section class="tds-settings-section" id="settings-mail" data-settings="mail" data-reveal-for="platform-admin" hidden>
-            <h2 class="tds-settings-section__title">E-Mail (SMTP)</h2>
+            <h2 class="tds-settings-section__title">{baseLabel("mail")}</h2>
             <MailSettings client:load />
           </section>
         ) : null
@@ -43,7 +67,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       {
         showAdminSettings ? (
           <section class="tds-settings-section" id="settings-stripe" data-settings="stripe" data-reveal-for="platform-admin" hidden>
-            <h2 class="tds-settings-section__title">Zahlungen (Stripe)</h2>
+            <h2 class="tds-settings-section__title">{baseLabel("stripe")}</h2>
             <StripeSettings client:load />
           </section>
         ) : null
@@ -52,11 +76,11 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
         showAdminSettings ? (
           <>
           <section class="tds-settings-section" id="settings-cors" data-settings="cors" data-reveal-for="platform-admin" hidden>
-            <h2 class="tds-settings-section__title">CORS / Freigegebene Origins</h2>
+            <h2 class="tds-settings-section__title">{baseLabel("cors")}</h2>
             <CorsSettings client:load />
           </section>
           <section class="tds-settings-section" id="settings-sitemap" data-settings="sitemap" data-reveal-for="platform-admin" hidden>
-            <h2 class="tds-settings-section__title">Suchmaschinen (Sitemap)</h2>
+            <h2 class="tds-settings-section__title">{baseLabel("sitemap")}</h2>
             <SitemapSettings client:visible />
           </section>
           </>
@@ -81,6 +105,7 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
         })
       }
     </div>
+    </div>
   </section>
 </Layout>
 
@@ -104,6 +129,13 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
       chip.textContent = "nicht eingerichtet";
       chip.title = items.map((item) => item.title).join(" · ");
       title.append(" ", chip);
+      // The index says it too: the open section is findable without scrolling.
+      const link = document.querySelector(`[data-settings-link="${CSS.escape(id)}"]`);
+      if (link && !link.querySelector(".setup-missing")) {
+        const dot = chip.cloneNode(true) as HTMLElement;
+        dot.textContent = "offen";
+        link.append(" ", dot);
+      }
     }
   }
 
@@ -135,9 +167,52 @@ const showAdminSettings = FRONTEND_TARGET === "admin";
     tick();
   }
 
+  // Scroll-spy: the index marks the section being read. The section whose top
+  // last crossed the upper fifth of the viewport is the current one.
+  let spy: IntersectionObserver | null = null;
+  function watchSections() {
+    spy?.disconnect();
+    const links = new Map<string, HTMLElement>();
+    for (const link of document.querySelectorAll<HTMLElement>("[data-settings-link]")) {
+      links.set(`settings-${link.dataset.settingsLink}`, link);
+    }
+    if (links.size === 0 || typeof IntersectionObserver === "undefined") return;
+    const visible = new Set<string>();
+    const mark = () => {
+      const sections = [...document.querySelectorAll<HTMLElement>(".tds-settings-section:not([hidden])")];
+      const current = sections.find((s) => visible.has(s.id)) ?? null;
+      for (const [id, link] of links) {
+        if (current && id === current.id) link.setAttribute("aria-current", "true");
+        else link.removeAttribute("aria-current");
+      }
+    };
+    spy = new IntersectionObserver(
+      (records) => {
+        for (const r of records) {
+          if (r.isIntersecting) visible.add(r.target.id);
+          else visible.delete(r.target.id);
+        }
+        mark();
+      },
+      { rootMargin: "-80px 0px -60% 0px" },
+    );
+    for (const section of document.querySelectorAll(".tds-settings-section")) spy.observe(section);
+  }
+
   document.addEventListener("astro:page-load", () => {
     if (!location.pathname.startsWith("/einstellungen")) return;
     void markSections();
     scrollToAnchor();
+    watchSections();
+  });
+  // The quick search (and the index) jump to a section on this same page; the
+  // router only moves the hash, so follow it while the section is still hidden
+  // or its islands are still growing.
+  window.addEventListener("hashchange", () => {
+    if (location.pathname.startsWith("/einstellungen")) scrollToAnchor();
+  });
+  document.addEventListener("astro:before-swap", () => {
+    spy?.disconnect();
+    spy = null;
   });
 </script>

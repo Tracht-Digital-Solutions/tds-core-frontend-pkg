@@ -225,3 +225,27 @@ describe("revealNav", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe("isGranted / cachedGrant", () => {
+  it("decides a flag, then a permission, admins passing every permission", async () => {
+    const { isGranted } = await import("./revealNav");
+    const grant = { flags: { "platform-admin": false }, admin: false, permissions: ["tickets:read"] };
+    expect(isGranted(grant, "platform-admin", undefined)).toBe(false);
+    expect(isGranted(grant, undefined, "tickets:read")).toBe(true);
+    expect(isGranted(grant, undefined, "shop:read")).toBe(false);
+    expect(isGranted({ ...grant, admin: true }, undefined, "shop:read")).toBe(true);
+    // A flag is never bypassed by admin: "Meine Firma" needs a membership.
+    expect(isGranted({ ...grant, admin: true }, "company-or-platform-admin", undefined)).toBe(false);
+  });
+
+  it("reads the cached grant defensively", async () => {
+    const { cachedGrant, REVEAL_CACHE_KEY } = await import("./revealNav");
+    localStorage.removeItem(REVEAL_CACHE_KEY);
+    expect(cachedGrant()).toBeNull();
+    localStorage.setItem(REVEAL_CACHE_KEY, "{broken");
+    expect(cachedGrant()).toBeNull();
+    localStorage.setItem(REVEAL_CACHE_KEY, JSON.stringify({ admin: true }));
+    expect(cachedGrant()).toEqual({ flags: {}, admin: true, permissions: [] });
+    localStorage.removeItem(REVEAL_CACHE_KEY);
+  });
+});
